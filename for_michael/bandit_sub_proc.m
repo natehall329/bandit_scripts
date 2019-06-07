@@ -2,98 +2,91 @@
 %
 % Jan Kalkus
 % 13 Nov 2012
-% Jon Wilson 4/22/2016
 
-function  out = bandit_fMRI_sub_proc(id, b, design_struct, dir_str)
+function b = bandit_sub_proc(id, varargin )
 % process behavioral data from variable-schedule 3-armed bandit task
 % more details at: http://bit.ly/HvBdby
 
-% %If b is an empty string get it from the read in function --
-% bandit_vba_read_in_data calls bandit_fMRI_sub_proc
-% if strcmpi(b,'')
-%     b = bandit_vba_read_in_data( 'id',id,'data_dir','subjects');
-% end
+% parse optional 'varargin' arguments
+fig_flag = false;
+alt_data_path = false;
+if(any(strcmpi('figure',varargin))), fig_flag = true; end
 
-%Decide which trials you want to filter, this only applys to the data
-%structure in the subjects dir
 
-filter_comp_only=0; %Filter only the computer trials
-filter_myst_only=0; %Filter only the mystery trials
-filter_myst_and_comp=0; %Filter both comp and myst trials
 
-if filter_comp_only
-    %REMOVE THE BLODDY COMPUTER TRIALS!!!
-    fprintf('Filtering computer trials...\n')
-    trial_filter = cellfun(@isempty,regexp(b.protocol_type,'comp'));
-elseif filter_myst_only
-    %Remove the mystry trials as well 5/25/17
-    fprintf('Filtering mystery trials trials...\n')
-    trial_filter = cellfun(@isempty,regexp(b.protocol_type,'myst'));
-elseif filter_myst_and_comp
-    fprintf('Filtering both computer and  mystery trials trials...\n')
-    trial_filter_comp = cellfun(@isempty,regexp(b.protocol_type,'comp'));
-    trial_filter_myst = cellfun(@isempty,regexp(b.protocol_type,'myst'));
-    trial_filter = trial_filter_comp==trial_filter_myst;
-else
-    fprintf('Not filtering any trials!\n')
-    %trial_filter = ones(length(b.protocol_type),1);
-    trial_filter = ~isnan(design_struct.Arew);
+%  --  get the data  --  %
+get_vars = {'showstim.RESP','showstim.RT','showstim.ACC'};
+[b, data_out_path] = getData(id,get_vars,varargin{:});
+
+% recode chosen position numerically, counterclockwise 1=top, 2=left, 3=right
+% there are multiple versions of this task which have differing output,
+% we need to search for matches for both old and new versions of the task. 
+% OR with SRBOX 4=left 5=top 6=right
+choice_right = strcmp(b.showstim_RESP,'right') | strcmp(b.showstim_RESP,'{RIGHTARROW}') | isequal(b.showstim_RESP,6);%b.showstim_RESP==6;
+choice_left  = strcmp(b.showstim_RESP,'left')  | strcmp(b.showstim_RESP,'{LEFTARROW}')  | isequal(b.showstim_RESP,4);%b.showstim_RESP==4;
+choice_top   = strcmp(b.showstim_RESP,'top')   | strcmp(b.showstim_RESP,'{UPARROW}')    | isequal(b.showstim_RESP,5);%b.showstim_RESP==5;
+
+if(any(strcmp('nonUPMC',varargin)))
+    choice_right = b.showstim_RESP==6;
+    choice_left  = b.showstim_RESP==4;
+    choice_top   = b.showstim_RESP==5;
 end
 
-out.choice_numeric_unfiltered=b.chosen_stim; %Save chosen stim relic
-out.trial_filter = trial_filter; %Save the trial filter
-
-if (filter_myst_and_comp + filter_myst_only + filter_comp_only > 0)
-    b=filter_trials(b,trial_filter);
-    design_struct=filter_trials(design_struct,trial_filter);
-else
-    design_struct=filter_trials(design_struct,trial_filter);
-end
+% code responses of chosen position
+b.chosen_position = (choice_top + (2*choice_left) + (3*choice_right));
 
 
-%Grab RT for future use
-out.stim_RT = b.stim_RT;
+%  --  get our design file  --  %
+% I'm pretty sure this is all in the E-prime output file as well,
+% it would be a good idea to update this in the future to just
+% pull this data from each file, I believe this is the same as the file
+% named crdt-sched-vrbl072911.
+load([pathroot 'db/bandit/designwithaposition.mat'], ...
+    'aposition','bposition','cposition', ...
+    'arew','brew','crew');
 
-%Clean the Nans out of the stim_ACC -- but just for this sub funciton
-out.stim_ACC = b.stim_ACC;
-out.stim_ACC(isnan(b.stim_ACC)) = 0;
 
 
+%  --  find probabiliy of reward  --  % 
+% stimulus with objectively highest reward probability, based on a 
+% 10-trial (last 10 samples of that stimulus) moving average 
+
+% translate position chosen to stimulus chosen
+b.achoice = ( b.chosen_position == aposition );
+b.bchoice = ( b.chosen_position == bposition );
+b.cchoice = ( b.chosen_position == cposition );
+b.stim_choice = char('A'*b.achoice + 'B'*b.bchoice + 'C'*b.cchoice); 
 %A=1 B=2 C=3
-out.achoice = ( b.chosen_stim==1 );
-out.bchoice = ( b.chosen_stim==2 );
-out.cchoice = ( b.chosen_stim==3 );
-out.stim_choice = char('A'*out.achoice + 'B'*out.bchoice + 'C'*out.cchoice); 
-
-
-out.stim_choice_numeric = (out.achoice + 2*out.bchoice + 3*out.cchoice);
+b.stim_choice_numeric = (b.achoice + 2*b.bchoice + 3*b.cchoice);
 
 % calculate probability of reward based on last 10 trials of the
 % stimulus. the average is based only on trials in which a given
 % stimulus was chosen (hence indexing by b.[x]choice).
 n_prev_trials = 10;
 
+%prob.a = obs_prob(arew,b.achoice,n_prev_trials);
+%prob.b = obs_prob(brew,b.bchoice,n_prev_trials);
+%prob.c = obs_prob(crew,b.cchoice,n_prev_trials);
+prob.a = obs_prob(double(b.showstim_ACC & b.achoice),[],n_prev_trials);
+prob.b = obs_prob(double(b.showstim_ACC & b.bchoice),[],n_prev_trials);
+prob.c = obs_prob(double(b.showstim_ACC & b.cchoice),[],n_prev_trials);
 
-prob.a = obs_prob(double(out.stim_ACC & out.achoice),[],n_prev_trials);
-prob.b = obs_prob(double(out.stim_ACC & out.bchoice),[],n_prev_trials);
-prob.c = obs_prob(double(out.stim_ACC & out.cchoice),[],n_prev_trials);
 
-
-out.prob = [prob.a prob.b prob.c]; prob = out.prob;
+b.prob = [prob.a prob.b prob.c]; prob = b.prob;
 
 % did the subject make the best choice possible; did the subject
 % choose the stimulus which, based upon the sampling history, had
 % the highest probability of reward?
-out.best_choice = zeros(size(prob,1),1); % pre-alloc. (with a struct?)
+b.best_choice = zeros(size(prob,1),1); % pre-alloc. (with a struct?)
 for row_i = 1:size(prob,1)
     % this method is more thorough; it is possible to have more
     % than one "good choice" (i.e., maximum probability option)
     % as some choices have the same (highest) probability. the
     % previous method forced one option, potentially falsely
     % coding correct/good choices as bad ones. 
-	tmp = find(prob(row_i,:) == max(prob(row_i,:)));
-    picked_stim = stimChar2Num(out.stim_choice(row_i));
-    out.best_choice(row_i,1) = any( tmp == picked_stim );
+	tmp = find(prob(row_i,:) == nanmax(prob(row_i,:)));
+    picked_stim = stimChar2Num(b.stim_choice(row_i));
+    b.best_choice(row_i,1) = any( tmp == picked_stim );
 end
 
 % TODO:
@@ -101,41 +94,41 @@ end
 % - what (see above)!?
 
 % additional measures
-out.above_chance_diff = aboveChanceDelta(out.prob,[design_struct.Arew,design_struct.Brew,design_struct.Crew]);
-out.delta_index = windowedDeltaIndex(out.prob,out.stim_choice,'A',[160 200]);
+b.above_chance_diff = aboveChanceDelta(b.prob,[arew,brew,crew]);
+b.delta_index = windowedDeltaIndex(b.prob,b.stim_choice,'A',[160 200]);
 
 % parse and code errors subject made
-out.errors = errorParser(out.stim_choice,out.best_choice,out.stim_ACC,out.prob);
-out.errors.perseverative = persevErrProc(out.stim_choice,out.best_choice,out.prob,out.stim_ACC);
+b.errors = errorParser(b.stim_choice,b.best_choice,b.showstim_ACC,b.prob);
+b.errors.perseverative = persevErrProc(b.stim_choice,b.best_choice,b.prob,b.showstim_ACC);
 
 % first half (before reversal)
-out.errors.before = ...
-    errorParser(out.stim_choice(1:150),out.best_choice(1:150),out.stim_ACC(1:150),out.prob(1:150,:));
-out.errors.before.perseverative = ...
-    persevErrProc(out.stim_choice(1:150),out.best_choice(1:150),out.prob(1:150,:),out.stim_ACC(1:150));
+b.errors.before = ...
+    errorParser(b.stim_choice(1:150),b.best_choice(1:150),b.showstim_ACC(1:150),b.prob(1:150,:));
+b.errors.before.perseverative = ...
+    persevErrProc(b.stim_choice(1:150),b.best_choice(1:150),b.prob(1:150,:),b.showstim_ACC(1:150));
 
 % second half (after reversal)
-out.errors.after = ...
-    errorParser(out.stim_choice(151:end),out.best_choice(151:end),out.stim_ACC(151:end),out.prob(151:end,:));
-out.errors.after.perseverative = ...
-    persevErrProc(out.stim_choice(151:end),out.best_choice(151:end),out.prob(151:end,:),out.stim_ACC(151:end));
+b.errors.after = ...
+    errorParser(b.stim_choice(151:end),b.best_choice(151:end),b.showstim_ACC(151:end),b.prob(151:end,:));
+b.errors.after.perseverative = ...
+    persevErrProc(b.stim_choice(151:end),b.best_choice(151:end),b.prob(151:end,:),b.showstim_ACC(151:end));
 
 % count the number of trials after the reversal until the first stim C is chosen
-out.counts_to_first_C = countTrialsToStim(out.stim_choice(151:end),'C');
-
-%Save b struct in out
-out.b=b;
+b.counts_to_first_C = countTrialsToStim(b.stim_choice(151:end),'C');
 
 % save individual file
-save(sprintf('%s/%d.mat',dir_str,id),'out');
+if ~exist(data_out_path,'dir')
+    mkdir(data_out_path);
+end
+save([data_out_path sprintf('/%d.mat',id)],'b');
 
 % plots if we want them
-% if(fig_flag)
-%  	showGraphs(id,prob,n_prev_trials,out,out.errors.perseverative);
-%     if(any(out.errors.perseverative))
-%         keyboard
-%     end
-% end
+if(fig_flag)
+ 	showGraphs(id,prob,n_prev_trials,b,b.errors.perseverative);
+    if(any(b.errors.perseverative))
+        keyboard
+    end
+end
 
 return
 
@@ -151,15 +144,24 @@ return
 
 
 % - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
-function xout = getData(id,vars)
+function [xout, fout] = getData(id,vars,varargin)
 % reads eprime data for a given bandit subject based on ID
+alt_path = false;
+if(any(strcmp('nonUPMC',varargin))), alt_path = true; end
 
-% Find the eprime file
-data_dir  = ['data/raw/'];
-file_name = ls([data_dir sprintf('%d/*.txt',id)]);
-tmp       = sprintf('data/raw/%d/%s',id,file_name);
-fpath     = @(~) tmp;
-
+if ~alt_path
+    % Find the eprime file
+    data_dir  = [pathroot 'analysis/bandit/data/raw/'];
+    file_name = ls([data_dir sprintf('%d/*.txt',id)]);
+    tmp       = sprintf('analysis/bandit/data/raw/%d/%s',id,file_name);
+    fpath     = @(~) [pathroot tmp];
+    fout      = 'data';
+else
+    file_path = glob([varargin{3} '*\' sprintf('*%d*.txt',id)]);
+    fpath     = @(~) file_path{:};
+    fout      = [varargin{3} 'processed_data'];
+end
+    
 % read in the data
 xout = eprimeread(fpath(),'trialproc',vars,0,-10,10); 
 
@@ -257,9 +259,7 @@ prob_switch          = false(size(stim_choice));
 spont_switch         = false(size(stim_choice));
 erratic_spont_switch = false(size(stim_choice));
 noncat_err           = false(size(stim_choice));
-%Why was this nan before?
-%explore_switch       = nan(size(stim_choice));
-explore_switch       = false(size(stim_choice));
+explore_switch       = nan(size(stim_choice));
 
 % calculate running correct response count
 count = 0; running_sum = zeros(size(stim_choice));
@@ -312,12 +312,10 @@ for error_n = find(q_error');
 
                         % subject probably made the switch because in the past
                         % it delivered reward consistenly enough when chosen
-%                         explore_switch(error_n) = 1;
-                          explore_switch(error_n) = true;
-
-%                     else
-%                         explore_switch(error_n) = 0;
-                     end
+                        explore_switch(error_n) = 1;
+                    else
+                        explore_switch(error_n) = 0;
+                    end
                 end
             end
         else
@@ -486,13 +484,3 @@ title(sprintf('Performance (subject n^o %d)',id));
 set(h,'XLim',[1 300],'YLim',[0 1]);
 
 return
-
-function b = filter_trials(b,trial_filter)
-fnames = fieldnames(b);
-for i=1:length(fnames)
-    try
-        b.(fnames{i}) = b.(fnames{i})(trial_filter);
-    catch
-        fprintf('Probably just the file name\n')
-    end
-end

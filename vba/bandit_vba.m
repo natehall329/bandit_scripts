@@ -1,4 +1,4 @@
-function [posterior,out,b] = bandit_vba(id,graphics,plot_subject,save_results,parameterization)
+function [posterior,out,b] = bandit_vba(id,graphics,plot_subject,save_results,parameterization,dir_str)
 
 % fits BANDIT rl model to 3 armed bandit subject data using VBA toolbox
 %
@@ -84,7 +84,7 @@ n_hidden_states = 4; %Track value for each arm of the bandit + PE
 
 %% Load in the subject's data
 %u is 2 x ntrials where first row is actions and second row is reward
-b = bandit_vba_read_in_data( 'id',id,'data_dir','subjects'); %REPLACE subjects with local dir
+b = bandit_vba_read_in_data( 'id',id,'data_dir',dir_str); %REPLACE subjects with local dir
 b.id = id;
 censor = b.chosen_stim==999; %Censor some trials first
 subjects_actions = b.chosen_stim;

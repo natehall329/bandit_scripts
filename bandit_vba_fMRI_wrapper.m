@@ -1,31 +1,38 @@
-%Handle dir paths
-dirs=dir('subjects');
+            %Handle dir paths
+            dir_str='Bandit_withrest';
+            % dir_str='subjects';
+            dirs=dir(dir_str);
 
-addpath('vba/')
-addpath('behav_scripts/')
 
-if ~exist('vba_output','dir')
-    mkdir('vba_output');
-end
 
-%Loading in the subjects that still need processed
-load('fMRI_ids_to_run_vba_on.mat')
+            addpath('vba/')
+            addpath('behav_scripts/')
 
-%The vanilla version is currently valence=1 decay=1 utility=0
+            if ~exist('vba_output','dir')
+                mkdir('vba_output');
+            end
 
-%Set up input arguements
-graphics = 0;
-plot_subject=0;
-save_results=0;
-parameterization.valence=1;
-parameterization.fix_decay=0; %The logic surrounds decay is kind of confusing
-parameterization.utility=0;
-parameterization.fix_all_params=0;
-parameterization.disappointment = 1;
-parameterization.regret = 0;
-parameterization.use_reward_vec=1;
+            %Loading in the subjects that still need processed
+            %load('fMRI_ids_to_run_vba_on.mat')
 
-for i = 3:length(dirs)
+            %The vanilla version is currently valence=1 decay=1 utility=0
+
+            %Set up input arguements
+            graphics = 0;
+            plot_subject=0;
+            save_results=0;
+            parameterization.valence=1;
+            parameterization.fix_decay=0; %The logic surrounds decay is kind of confusing
+            parameterization.utility=0;
+            parameterization.fix_all_params=0;
+            parameterization.disappointment = 1;
+            parameterization.regret = 0;
+            parameterization.use_reward_vec=1;
+
+            plot_subject=1;
+            save_results=1;
+
+for i = 4:(length(dirs)-1)
     if dirs(i).bytes <=0 
         try
             id=str2double(dirs(i).name);
@@ -34,7 +41,7 @@ for i = 3:length(dirs)
             %Save all the ids processed
             idNumbers(i) = id;
             %[posterior,out,b] = bandit_vba(id,graphics,plot_subject,valence, decay,utility,save_results);
-            [posterior,out,b] = bandit_vba(id,graphics,plot_subject,save_results,parameterization);
+            [posterior,out,b] = bandit_vba(id,graphics,plot_subject,save_results,parameterization,dir_str);
             
             %HOT fix for VB new model
             file_path = 'E:\data\bandit\new_model_vb';

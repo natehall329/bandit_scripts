@@ -9,7 +9,8 @@ vba_df = table();
 if fMRI_flag
     vba_files = glob('vba_output/*.mat');
 else
-    vba_files = glob('E:/data/bandit/bandit_behav_vba_output/*.mat');
+%     vba_files = glob('/Users/nth7/Desktop/bandit_sandbox/bandit_scripts/Bandit_withrest/*.mat');
+    vba_files = glob('vba_output/*.mat');
 end
 
 
@@ -22,6 +23,12 @@ for vba_file = vba_files'
     
     %Grab id
     tmp_table.ID = b.id;
+    
+    
+%     expression = '\d+';
+%     bla=regexp(vba_file, expression, 'match');
+%     id = char(bla{1,1}(2));
+%     
     
     %Grab y & u
     tmp_table.y = {out.y};
