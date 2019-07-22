@@ -89,12 +89,26 @@ b.id = id;
 censor = b.chosen_stim==999; %Censor some trials first
 subjects_actions = b.chosen_stim;
 subjects_actions(censor)=nan;
+
+
+if no_mri
+%%override subject actions in behavioral setup. unclear why but the
+%%eprimeread script botches this, and I've rerun chosen actions and
+%%outcomes into R. 
+
+subjects_actions = textread(sprintf('%s/%d/choices.txt', dir_str, id), '%f');
+b.chosen_stim = subjects_actions;
+%actions_R = type (sprintf('%s/%d/choices.txt', dir_str, id))
+end
+
+
 u(1,:) = subjects_actions; %Chosen action [1 2 3]
 if use_reward_vec
     u(2,:) = b.rewardVec; %Reward has actual value [10 25 50]
     u(3,:) = b.stakeVec; %Stake 
 else
-    u(2,:) = b.stim_ACC; %Reward or not [1 0]
+    u(2,:) = textread(sprintf('%s/%d/outcomes.txt', dir_str, id), '%f');
+    %u(2,:) = b.stim_ACC; %Reward or not [1 0]
     u(3,:) = NaN;
 end
 u = [zeros(size(u,1),1) u(:,1:end-1)]; %Shift the u!
@@ -105,6 +119,9 @@ if use_first_150==1
    u = u(:,1:n_t);
    censor = censor(1:n_t);
 end
+
+
+
 
 y = zeros(3, n_t);
 for i = 1:n_t
@@ -123,7 +140,7 @@ options.inG.b = b;
 options.skipf = zeros(1,n_t);
 options.skipf(1) = 1;
 
-options.binomial = 1;
+%options.binomial = 1;
 
 %% split into conditions/runs
 % if multisession %improves fits moderately
@@ -172,9 +189,17 @@ options.verbose=1;
 options.isYout = repmat(censor,1,3)';
 options.inF.Yout = options.isYout;
 
+
+%%set to multinomial, remove binomial
+
+options.sources(1) = struct('out', 1:3, 'type', 2); %choice is multinomial (with no response)
+options.inF.decay = 1;
+
+
 %% Run the vba model
 [posterior,out] = VBA_NLStateSpaceModel(y,u,f_name,g_name,dim,options);
 
+%displayResults(posterior,out,y);%,x,x0,theta,phi,Inf,Inf);
 %Plot the subjects choices if needed
 if plot_subject==1
     plot_subject_vs_contingency(b,out)
@@ -305,7 +330,9 @@ catch
     fprintf('Stat toolbox not found!\n\n')
 end
 
-%Create reward stake and just stake align it with trialonset
+
+if ~no_mri
+  %Create reward stake and just stake align it with trialonset
 out.suffStat.reward_stake = b.rewardVec';
 out.suffStat.reward_stake(b.rewardVec==10)=1;
 out.suffStat.reward_stake(b.rewardVec==25)=2;
@@ -355,6 +382,8 @@ out.suffStat.win_stay_50_prob = length(intersect(out.suffStat.win_50_trials,out.
 out.suffStat.loss_stay_10_prob = length(intersect(out.suffStat.loss_10_trials,out.suffStat.stay_trials))./length(out.suffStat.loss_10_trials);
 out.suffStat.loss_stay_25_prob = length(intersect(out.suffStat.loss_25_trials,out.suffStat.stay_trials))./length(out.suffStat.loss_25_trials);
 out.suffStat.loss_stay_50_prob = length(intersect(out.suffStat.loss_50_trials,out.suffStat.stay_trials))./length(out.suffStat.loss_50_trials);
+
+end
 
 if save_results==1
     %create name for saving output based on model inputs and date

@@ -27,7 +27,7 @@
             parameterization.fix_all_params=0;
             parameterization.disappointment = 1;
             parameterization.regret = 0;
-            parameterization.use_reward_vec=1;
+            parameterization.use_reward_vec=0;
 
             plot_subject=1;
             save_results=1;
