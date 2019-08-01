@@ -1,4 +1,4 @@
-function [posterior_sub,out_sub,posterior_group,out_group,b] = bandit_vba_mfx(dirs,graphics,plot_subject,save_results,parameterization)
+function [posterior_sub,out_sub,posterior_group,out_group,b] = bandit_vba_mfx(dirs,graphics,plot_subject,save_results,parameterization,dir_str, no_mri)
 
 % fits BANDIT rl model to 3 armed bandit subject data using VBA toolbox
 % example call: %%%NEED TO FIX THIS
@@ -118,18 +118,30 @@ n_hidden_states = 4; %Track value for each arm of the bandit + PE
      
      % Load in the subject's data
      %u is 2 x ntrials where first row is actions and second row is reward
-     b{i} = bandit_vba_read_in_data( 'id',id,'data_dir','subjects'); %REPLACE subjects with local dir
+     b{i} = bandit_vba_read_in_data( 'id',id,'data_dir',dir_str); %REPLACE subjects with local dir
      b{i}.id = id;
      censor = b{i}.chosen_stim==999; %Censor some trials first
      subjects_actions = b{i}.chosen_stim;
      subjects_actions(censor)=nan;
+     
+if no_mri
+%%override subject actions in behavioral setup. unclear why but the
+%%eprimeread script botches this, and I've rerun chosen actions and
+%%outcomes into R. 
+
+subjects_actions = textread(sprintf('%s/%d/choices.txt', dir_str, id), '%f');
+b{i}.chosen_stim = subjects_actions;
+%actions_R = type (sprintf('%s/%d/choices.txt', dir_str, id))
+end
+    
      all_u{i}(1,:) = subjects_actions; %Chosen action [1 2 3]
      if use_reward_vec
          all_u{i}(2,:) = b{i}.rewardVec; %Reward has actual value [10 25 50]
          all_u{i}(3,:) = b{i}.stakeVec; %Stake
      else
-         all_u{i}(2,:) = b{i}.stim_ACC; %Reward or not [1 0]
-         all_u{i}(3,:) = NaN;
+          all_u{i}(2,:) = textread(sprintf('%s/%d/outcomes.txt', dir_str, id), '%f');
+            %u(2,:) = b.stim_ACC; %Reward or not [1 0]
+           all_u{i}(3,:) = NaN;
      end
      all_u{i} = [zeros(size(all_u{i},1),1) all_u{i}(:,1:end-1)]; %Shift the u!
      

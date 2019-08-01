@@ -1,3 +1,4 @@
+
 function  [fx] = f_bandit_Qlearn(x,theta,u,in)
 % evolution function of q-values of a RL agent (3-armed bandit problem)
 % [fx,dfdx,dfdP] = f_Qlearn2(x,P,u,in)

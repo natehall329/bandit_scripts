@@ -1,4 +1,4 @@
-function [posterior,out,b] = bandit_vba(id,graphics,plot_subject,save_results,parameterization,dir_str)
+function [posterior,out,b] = bandit_vba(id,graphics,plot_subject,save_results,parameterization,dir_str, no_mri)
 
 % fits BANDIT rl model to 3 armed bandit subject data using VBA toolbox
 %

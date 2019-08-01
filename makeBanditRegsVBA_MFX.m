@@ -18,10 +18,21 @@
 %set to 1)
 task_tracking=0; 
 
-%Handle dir paths
+
+no_mri =1; %for behavior for RS study
+
+if no_mri
+    dir_str='Bandit_withrest';
+% dir_str='subjects';
+dirs=dir(dir_str);
+dirs = dirs(4:length(dirs)-1); %for input to Alex's script.
+else
+    %Handle dir paths
 dirs_all=dir('subjects');
 subj_dirs=dirs_all([dirs_all.bytes]==0);
 dirs=subj_dirs(3:end);
+end
+
 
 addpath('vba\')
 addpath('behav_scripts\')
@@ -53,9 +64,11 @@ parameterization.disappointment = 0;
 parameterization.regret = 0;
 parameterization.use_reward_vec=0;
 
+
+
 %note: the bandit_vba_mfx file uses the structure of dirs rather than the
 %id used in single-subject bandit_vba
-[posterior_sub,out_sub,posterior_group,out_group,b] = bandit_vba_mfx(dirs,graphics,plot_subject,save_results,parameterization);
+[posterior_sub,out_sub,posterior_group,out_group,b] = bandit_vba_mfx(dirs,graphics,plot_subject,save_results,parameterization, dir_str, no_mri);
 
 idNumbers=zeros(size(dirs,1));
 

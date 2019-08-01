@@ -41,7 +41,7 @@ for i = 4:(length(dirs)-1)
             %Save all the ids processed
             idNumbers(i) = id;
             %[posterior,out,b] = bandit_vba(id,graphics,plot_subject,valence, decay,utility,save_results);
-            [posterior,out,b] = bandit_vba(id,graphics,plot_subject,save_results,parameterization,dir_str);
+            [posterior,out,b] = bandit_vba(id,graphics,plot_subject,save_results,parameterization,dir_str, no_mri);
             
             %HOT fix for VB new model
             file_path = 'E:\data\bandit\new_model_vb';
@@ -81,3 +81,4 @@ end
 
 %Close up anything that's stil open
 fclose all;
+

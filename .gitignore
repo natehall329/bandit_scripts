@@ -11,3 +11,4 @@ NH_bandit.m
 *.zip
 vba/bandit_vba_mfx.asv
 .DS_*
+sceptic_validate_options.m
