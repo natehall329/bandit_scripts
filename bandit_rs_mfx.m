@@ -8,7 +8,8 @@ dir_str='Bandit_withrest';
 dirs=dir(dir_str);
 
 
-
+addpath(genpath('~/Documents/MATLAB/VBA-toolbox-master/'))
+%addpath('~/Documents/MATLAB/VBA-toolbox-master/utils')
 addpath('vba/')
 addpath('behav_scripts/')
 addpath('~/Box/temporal_instrumental_agent')
@@ -125,7 +126,7 @@ priors_group.b_vX0 = zeros([1, dim.n]);
 % priors_group.a_vX0 = Inf([1, so.nbasis*so.hidden_states]); %use infinite precision prior on gamma for X0 to treat as fixed (a = Inf; b = 0)
 % priors_group.b_vX0 = zeros([1, so.nbasis*so.hidden_states]);
 
-[p_sub, o_sub, p_group, o_group] = VBA_MFX_parallel(y_all, u_all, @f_bandit_Qlearn, @g_bandit_softmax, dim, options_all, priors_group, options_group);
+%[p_sub, o_sub, p_group, o_group] = VBA_MFX_parallel(y_all, u_all, @f_bandit_Qlearn, @g_bandit_softmax, dim, options_all, priors_group, options_group);
 [p_sub, o_sub, p_group, o_group] = VBA_MFX(y_all, u_all, @f_bandit_Qlearn, @g_bandit_softmax, dim, options_all, priors_group, options_group);
 %[p_sub, o_sub, p_group, o_group] = VBA_MFX(y_all, u_all, @h_sceptic_fixed_decay_fmri, @g_sceptic, dim, options_all, priors_group, options_group);
 

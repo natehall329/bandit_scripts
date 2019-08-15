@@ -175,7 +175,8 @@ plot.me <- melt(data = toplot, id.vars = "trial", measure.vars = c("p_A", "p_B",
 
 sample_loess <- ggplot(plot.me, aes(x = trial, y = value, color = variable)) +geom_point()  + geom_smooth() + scale_y_continuous(limits = c(0,1))+ ggtitle("Entire sample behavior")
 
-cowplot::plot_grid(reinforcement_schedule, sample_loess, nrow = 1)
+reinforce_sample <- cowplot::plot_grid(reinforcement_schedule, sample_loess, nrow = 1)
+plot(reinforce_sample)
 
 for(sub in 1:length(list.files())){
   sub_plot <- sub_plots[[sub]]
@@ -185,7 +186,7 @@ for(sub in 1:length(list.files())){
 
 dev.off()
 
-
+save(reinforce_sample, file = paste0(basedir, "bandit_scripts/R/reinforce_sample.R"))
 
 # test subject ------------------------------------------------------------
 

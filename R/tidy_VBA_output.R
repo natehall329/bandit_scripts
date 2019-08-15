@@ -10,7 +10,7 @@ library(cowplot)
 identifier <- "_22-Jul-2019_.mat"
 to_process <- list.files()[grepl(identifier, list.files())]
 sub_ids <- sub("id_", "",sub(pattern = "_bandit_vba_.*", "",to_process))
-proc_df <- data.frame(fname = to_process, id = as.numeric(sub_ids)) %>% arrange(id)
+proc_df <- data.frame(fname = to_process_f, id = as.numeric(sub_ids)) %>% arrange(id)
 
 uber_df <- data.frame()
 fits <- data.frame(id = rep(NA,length(to_process)), R2=rep(NA,length(to_process)), class_acc = rep(NA,length(to_process))) 

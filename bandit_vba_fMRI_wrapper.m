@@ -25,7 +25,7 @@
             parameterization.fix_decay=0; %The logic surrounds decay is kind of confusing
             parameterization.utility=0;
             parameterization.fix_all_params=0;
-            parameterization.disappointment = 1;
+            parameterization.disappointment = 0;
             parameterization.regret = 0;
             parameterization.use_reward_vec=0;
 
