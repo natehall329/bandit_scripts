@@ -84,6 +84,8 @@ for sub = 1:ns
     
     [options,dim,priors] = bandit_vba_setup(id,graphics,plot_subject,save_results,parameterization,dir_str, no_mri);
 
+  
+    delete(strcat('Bandit_withrest/',toStringJSON(id), '.mat'))  %get rid of superfluous .mat files that are hanging around for some reason.
     
 %     [data, y, u] = sceptic_get_data(behavfiles{sub}, so);
 %   [options, dim] = sceptic_get_vba_options(data, so);
@@ -93,7 +95,7 @@ for sub = 1:ns
 
     % populate data structures for VBA_MFX
     y_all{sub} = textread(sprintf('%s/%d/choices.txt', dir_str, id), '%f');
-    u_all{sub} = textread(sprintf('%s/%d/outcomes.txt', dir_str, id), '%f');;
+    u_all{sub} = textread(sprintf('%s/%d/outcomes.txt', dir_str, id), '%f');
     options_all{sub} = options; %%N.B. probably going to have to come
 %     back to this. 
 
