@@ -82,7 +82,7 @@ for sub = 1:ns
     fprintf('Loading subject %d id: %s \n', sub, ids{sub});
     id = str2double(ids{sub});
     
-    [options,dim,priors] = bandit_vba_setup(id,graphics,plot_subject,save_results,parameterization,dir_str, no_mri);
+    [options,dim,priors,u,y] = bandit_vba_setup(id,graphics,plot_subject,save_results,parameterization,dir_str, no_mri);
 
   
     delete(strcat('Bandit_withrest/',toStringJSON(id), '.mat'))  %get rid of superfluous .mat files that are hanging around for some reason.
@@ -92,17 +92,19 @@ for sub = 1:ns
 %     n_t(sub) = dim.n_t; % allow for variation in number of trials across subjects
 %     
 
+    y_all{sub} = y;
+    u_all{sub} = u;
 
     % populate data structures for VBA_MFX
-    y_all{sub} = textread(sprintf('%s/%d/choices.txt', dir_str, id), '%f');
-    u_all{sub} = textread(sprintf('%s/%d/outcomes.txt', dir_str, id), '%f');
+    %y_all{sub} = textread(sprintf('%s/%d/choices.txt', dir_str, id), '%f');
+    %u_all{sub} = textread(sprintf('%s/%d/outcomes.txt', dir_str, id), '%f');
     options_all{sub} = options; %%N.B. probably going to have to come
 %     back to this. 
 
 end
 
 
-%options for MFX.. this all comes from MH. Priors may need to be tweaked
+% options for MFX.. this all comes from MH. Priors may need to be tweaked
 %slightly
 options_group.TolFun=1e-2;
 options_group.MaxIter=50;
