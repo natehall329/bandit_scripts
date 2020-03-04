@@ -18,6 +18,8 @@ function  [fx] = f_bandit_Qlearn(x,theta,u,in)
 r = u(2); % when subjects chooses correctly reward is 1 unless we use the reward vector, which then the input is rew magnitude
 stake = u(3); %stake if use_reward_vec = 1
 
+%if u(4) == 6, keyboard; end
+
 if in.fixed_params %Fixed paramteres
     theta(1) = 0.176093991469957; %alpha_win
     theta(2) = -0.625165021117312; %alpha_loss

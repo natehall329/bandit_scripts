@@ -272,6 +272,7 @@ for n = 1:length(stim_choice)
     end
 end
 
+
 % find trial with errors
 q_error = ( reward == false );
 

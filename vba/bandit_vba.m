@@ -111,6 +111,8 @@ else
     %u(2,:) = b.stim_ACC; %Reward or not [1 0]
     u(3,:) = NaN;
 end
+u(4,:) = 1:length(b.stim_ACC); %add trial number for debugging
+
 u = [zeros(size(u,1),1) u(:,1:end-1)]; %Shift the u!
 
 %Only use the first 150 trials

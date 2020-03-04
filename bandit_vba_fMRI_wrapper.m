@@ -43,11 +43,17 @@ for i = 4:(length(dirs)-1)
             %[posterior,out,b] = bandit_vba(id,graphics,plot_subject,valence, decay,utility,save_results);
             [posterior,out,b] = bandit_vba(id,graphics,plot_subject,save_results,parameterization,dir_str, no_mri);
             
+            error_struct = b.sub_proc.errors;
+            error_struct = rmfield(error_struct, {'before', 'after'});
+            btmp = rmfield(b.sub_proc, {'delta_index', 'errors', 'counts_to_first_C', 'b'});
+            btmp = horzcat(struct2table(btmp), struct2table(error_struct));
+            writetable(btmp, sprintf('b_outputs\b_subject%s.csv', num2str(id)));
+            
             %HOT fix for VB new model
-            file_path = 'E:\data\bandit\new_model_vb';
-            file_name = sprintf('id_%d_bandit_vba_output_%d_rewVec_new_model',id,use_reward_vec);
-            file_str = [file_path filesep file_name];
-            save(file_str,'posterior', 'out', 'b', 'parameterization')
+%             file_path = 'E:\data\bandit\new_model_vb';
+%             file_name = sprintf('id_%d_bandit_vba_output_%d_rewVec_new_model',id,use_reward_vec);
+%             file_str = [file_path filesep file_name];
+%             save(file_str,'posterior', 'out', 'b', 'parameterization')
 
             
         catch exception
