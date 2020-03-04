@@ -325,7 +325,7 @@ rl_subs_single_obs <- rl_subs %>% group_by(id, AgeAtScan, BPD, `86_220`, `84_220
 
 rl_subs_single_obs <- rl_subs %>% select(-PEchosen_tmin1) %>% distinct()
 
-pdf("~/Desktop/heatmaps_models.pdf", width = 11, height = 8)
+pdf(paste0(bandit_dir, "/heatmaps_models.pdf"), width = 11, height = 8)
 for(i in loop_over){
   
   forms_l <- list()
@@ -425,8 +425,3 @@ for(i in loop_over){
 dev.off()
 beepr::beep()
 
-# 
-# rl_subs$BPD <- factor(rl_subs$BPD, levels = c(0,1), labels = c("HC", "BPD"))
-# 
-# ggplot(rl_subs %>% filter(R2_drop == 0), aes(x = AgeAtScan, y = `90_215`, color = BPD)) + geom_point() + geom_smooth(method = "lm")
-# results_005
