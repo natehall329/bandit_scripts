@@ -1,4 +1,4 @@
-function [options, dim, priors,u, y] = bandit_vba(id,graphics,plot_subject,save_results,parameterization,dir_str, no_mri)
+function [options, dim, priors, u, y, b] = bandit_vba_setup(id,graphics,plot_subject,save_results,parameterization,dir_str, no_mri)
 
 % fits BANDIT rl model to 3 armed bandit subject data using VBA toolbox
 %
@@ -84,7 +84,7 @@ n_hidden_states = 4; %Track value for each arm of the bandit + PE
 
 %% Load in the subject's data
 %u is 2 x ntrials where first row is actions and second row is reward
-b = bandit_vba_read_in_data( 'id',id,'data_dir',dir_str); %REPLACE subjects with local dir
+b = bandit_vba_read_in_data('id',id,'data_dir',dir_str); %REPLACE subjects with local dir
 b.id = id;
 censor = b.chosen_stim==999; %Censor some trials first
 subjects_actions = b.chosen_stim;
@@ -94,9 +94,9 @@ subjects_actions(censor)=nan;
 if no_mri
 %%override subject actions in behavioral setup. unclear why but the
 %%eprimeread script botches this, and I've rerun chosen actions and
-%%outcomes into R. 
+%%outcomes into R: parse_eprime_to_txt.R
 
-subjects_actions = textread(sprintf('%s/%d/choices.txt', dir_str, id), '%f');
+subjects_actions = textread(sprintf('%s/%d/choices.txt', dir_str, id), '%f'); %should contain A=1, B=2, C=3 mapping
 b.chosen_stim = subjects_actions;
 %actions_R = type (sprintf('%s/%d/choices.txt', dir_str, id))
 end
@@ -107,7 +107,7 @@ if use_reward_vec
     u(2,:) = b.rewardVec; %Reward has actual value [10 25 50]
     u(3,:) = b.stakeVec; %Stake 
 else
-    u(2,:) = textread(sprintf('%s/%d/outcomes.txt', dir_str, id), '%f');
+    u(2,:) = textread(sprintf('%s/%d/outcomes.txt', dir_str, id), '%f'); %externally checked/validated outcomes
     %u(2,:) = b.stim_ACC; %Reward or not [1 0]
     u(3,:) = NaN;
 end
@@ -192,7 +192,7 @@ options.inF.Yout = options.isYout;
 
 %%set to multinomial, remove binomial
 
-options.sources(1) = struct('out', 1:3, 'type', 2); %choice is multinomial (with no response)
+options.sources(1) = struct('out', 1:3, 'type', 2); %choice is multinomial: A, B, or C
 options.inF.decay = 1;
 
 
