@@ -1,67 +1,67 @@
-            %Handle dir paths
-            dir_str='Bandit_withrest';
-            % dir_str='subjects';
-            dirs=dir(dir_str);
+%Handle dir paths
+dir_str='Bandit_withrest';
+% dir_str='subjects';
+dirs=dir(dir_str);
 
 
 
-            addpath('vba/')
-            addpath('behav_scripts/')
+addpath('vba/')
+addpath('behav_scripts/')
 
-            if ~exist('vba_output','dir')
-                mkdir('vba_output');
-            end
+if ~exist('vba_output','dir')
+  mkdir('vba_output');
+end
 
-            %Loading in the subjects that still need processed
-            %load('fMRI_ids_to_run_vba_on.mat')
+%Loading in the subjects that still need processed
+%load('fMRI_ids_to_run_vba_on.mat')
 
-            %The vanilla version is currently valence=1 decay=1 utility=0
+%The vanilla version is currently valence=1 decay=1 utility=0
 
-            %Set up input arguements
-            graphics = 0;
-            plot_subject=0;
-            save_results=0;
-            parameterization.valence=1;
-            parameterization.fix_decay=0; %The logic surrounds decay is kind of confusing
-            parameterization.utility=0;
-            parameterization.fix_all_params=0;
-            parameterization.disappointment = 0;
-            parameterization.regret = 0;
-            parameterization.use_reward_vec=0;
+%Set up input arguements
+graphics = 0;
+plot_subject=0;
+save_results=0;
+parameterization.valence=1;
+parameterization.fix_decay=0; %The logic surrounds decay is kind of confusing
+parameterization.utility=0;
+parameterization.fix_all_params=0;
+parameterization.disappointment = 0;
+parameterization.regret = 0;
+parameterization.use_reward_vec=0;
 
-            plot_subject=1;
-            save_results=1;
+plot_subject=1;
+save_results=1;
 
 for i = 4:(length(dirs)-1)
-    if dirs(i).bytes <=0 
-        try
-            id=str2double(dirs(i).name);
-            b.id = id;
-            
-            %Save all the ids processed
-            idNumbers(i) = id;
-            %[posterior,out,b] = bandit_vba(id,graphics,plot_subject,valence, decay,utility,save_results);
-            [posterior,out,b] = bandit_vba(id,graphics,plot_subject,save_results,parameterization,dir_str, no_mri);
-            
-            error_struct = b.sub_proc.errors;
-            error_struct = rmfield(error_struct, {'before', 'after'});
-            btmp = rmfield(b.sub_proc, {'delta_index', 'errors', 'counts_to_first_C', 'b'});
-            btmp = horzcat(struct2table(btmp), struct2table(error_struct));
-            writetable(btmp, sprintf('b_outputs\b_subject%s.csv', num2str(id)));
-            
-            %HOT fix for VB new model
-%             file_path = 'E:\data\bandit\new_model_vb';
-%             file_name = sprintf('id_%d_bandit_vba_output_%d_rewVec_new_model',id,use_reward_vec);
-%             file_str = [file_path filesep file_name];
-%             save(file_str,'posterior', 'out', 'b', 'parameterization')
-
-            
-        catch exception
-            
-            %Record errors in logger
-%             errorlog('bandit',b.id,exception)
-        end
+  if dirs(i).bytes <=0
+    try
+      id=str2double(dirs(i).name);
+      b.id = id;
+      
+      %Save all the ids processed
+      idNumbers(i) = id;
+      %[posterior,out,b] = bandit_vba(id,graphics,plot_subject,valence, decay,utility,save_results);
+      [posterior,out,b] = bandit_vba(id,graphics,plot_subject,save_results,parameterization,dir_str, no_mri);
+      
+      error_struct = b.sub_proc.errors;
+      error_struct = rmfield(error_struct, {'before', 'after'});
+      btmp = rmfield(b.sub_proc, {'delta_index', 'errors', 'counts_to_first_C', 'b'});
+      btmp = horzcat(struct2table(btmp), struct2table(error_struct));
+      writetable(btmp, sprintf('b_outputs/b_subject%s.csv', num2str(id)));
+      
+      %HOT fix for VB new model
+      %             file_path = 'E:\data\bandit\new_model_vb';
+      %             file_name = sprintf('id_%d_bandit_vba_output_%d_rewVec_new_model',id,use_reward_vec);
+      %             file_str = [file_path filesep file_name];
+      %             save(file_str,'posterior', 'out', 'b', 'parameterization')
+      
+      
+    catch exception
+      
+      %Record errors in logger
+      %             errorlog('bandit',b.id,exception)
     end
+  end
 end
 
 
@@ -69,14 +69,14 @@ end
 % %         try
 % %             id=fMRI_ids_to_run_vba_on(i);
 % %             b.id = id;
-% %             
+% %
 % %             %Save all the ids processed
 % %             idNumbers(i) = id;
 % %             %[posterior,out,b] = bandit_vba(id,graphics,plot_subject,valence, decay,utility,save_results);
 % %             [posterior,out,b] = bandit_vba(id,graphics,plot_subject,valence, fix_decay,utility,save_results,fix_all_params);
-% %             
+% %
 % %         catch exception
-% %             
+% %
 % %             %Record errors in logger
 % %             errorlog('bandit',b.id,exception)
 % %         end

@@ -97,6 +97,11 @@ if no_mri
 %%outcomes into R: parse_eprime_to_txt.R
 
 subjects_actions = textread(sprintf('%s/%d/choices.txt', dir_str, id), '%f'); %should contain A=1, B=2, C=3 mapping
+if ~all(b.chosen_stim ==  subjects_actions)
+  fprintf('problem with reading in choices\n');
+  keyboard
+end
+
 b.chosen_stim = subjects_actions;
 %actions_R = type (sprintf('%s/%d/choices.txt', dir_str, id))
 end

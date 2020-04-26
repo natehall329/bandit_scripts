@@ -52,63 +52,64 @@ data_dir = varargin{ find(strcmp('data_dir',varargin))+1 };
 %  --  get the data  --  %
 % (yuck)
 for n_proc = 1:numel(procs.names)
-    get_vars = {};
-    
-    for n_stim_suffix = 1:numel(procs.suffixes.stim)
-        tmp = sprintf('%s.%s',procs.prefixes{n_proc}{1},procs.suffixes.stim{n_stim_suffix});
-        get_vars(end+1) = {tmp};
-    end
-    
-%     for n_fb_suffix = 1:numel(procs.suffixes.feedbk)
-%         tmp = sprintf('%s.%s',procs.prefixes{n_proc}{2},procs.suffixes.feedbk{n_fb_suffix});
-%         get_vars(end+1) = {tmp};
-%     end
-    
-    % this variable keeps track of trial numbers
-    get_vars{end+1} = 'stimlist';
-    get_vars{end+1} = 'jitter1'; get_vars{end+1} = 'jitter2';
-    
-    %N.B. for behavioral it crashes here
-    a.(procs.names{n_proc}) = getfmriData(id,get_vars,procs.names{n_proc},data_dir);
-    %a.(procs.names{n_proc}) = 'dummy_behav';
-    a.(procs.names{n_proc}).showstim_jitter1 = a.(procs.names{n_proc}).jitter1;
-    a.(procs.names{n_proc}).showstim_jitter2 = a.(procs.names{n_proc}).jitter2;
-    a.(procs.names{n_proc}) = rmfield(a.(procs.names{n_proc}),{'jitter1','jitter2'});
-    
+  get_vars = {};
+  
+  for n_stim_suffix = 1:numel(procs.suffixes.stim)
+    tmp = sprintf('%s.%s',procs.prefixes{n_proc}{1},procs.suffixes.stim{n_stim_suffix});
+    get_vars(end+1) = {tmp};
+  end
+  
+  %     for n_fb_suffix = 1:numel(procs.suffixes.feedbk)
+  %         tmp = sprintf('%s.%s',procs.prefixes{n_proc}{2},procs.suffixes.feedbk{n_fb_suffix});
+  %         get_vars(end+1) = {tmp};
+  %     end
+  
+  % this variable keeps track of trial numbers
+  get_vars{end+1} = 'stimlist.Sample';
+  get_vars{end+1} = 'jitter1'; get_vars{end+1} = 'jitter2';
+  
+  %N.B. for behavioral it crashes here
+  a.(procs.names{n_proc}) = getfmriData(id,get_vars,procs.names{n_proc},data_dir);
+  %a.(procs.names{n_proc}) = 'dummy_behav';
+  a.(procs.names{n_proc}).showstim_jitter1 = a.(procs.names{n_proc}).jitter1;
+  a.(procs.names{n_proc}).showstim_jitter2 = a.(procs.names{n_proc}).jitter2;
+  a.(procs.names{n_proc}) = rmfield(a.(procs.names{n_proc}),{'jitter1','jitter2'});
+  
 end
 
 % -- organize structure and clean up vars -- %
 fprintf('reading in data...\n');
-ntrial = maximumTrialNum(a,'stimlist');
-b = preallocateStruct(fieldnames(rmfield(a.trialproc,{'fname','stimlist'})),ntrial);
+ntrial = maximumTrialNum(a,'stimlist_Sample');
+if ntrial < 300, error('fewer than 300 trials in read'); end
+b = preallocateStruct(fieldnames(rmfield(a.trialproc,{'fname','stimlist_Sample'})),ntrial);
 
 b.fname = a.trialproc.fname;
 b.protocol_type = cell(ntrial,1); % preallocate space for keeping track of trial type
 
 fprintf('matching data to appropriate fields...\n');
 for n = fieldnames(a)'
-    for m = fieldnames(rmfield(a.(n{:}),{'fname','stimlist'}))'
-        % grab trial number index for given "protocol"
-        q_trial_index = a.(n{:}).stimlist;
-        
-        % now we need to match current fieldnames in the
-        % structure (b) with variable names of read-in data
-        new_fieldname = matchDataToField(fieldnames(rmfield(b,{'fname','protocol_type'})),m);
-        
-        % not all protocols' variables overlap, leading to empty
-        % arrays/cell arrays -- we need to convert them to arrays
-        % of NaNs if they're found. (if a variable is missing for
-        % a given protocol, that will result in an empty cell
-        % array -- just check for a cell array.)
-        tmp = a.(n{:}).(m{:}); % get the array
-        if(iscell(tmp)), tmp = nan(size(tmp)); end
-        
-        % store into new structure
-        b.(new_fieldname)(q_trial_index) = tmp;
-        
-        % store the type of trial
-        b.protocol_type(q_trial_index) = n(:);
-    end
+  for m = fieldnames(rmfield(a.(n{:}),{'fname','stimlist_Sample'}))'
+    % grab trial number index for given "protocol"
+    q_trial_index = a.(n{:}).stimlist_Sample;
+    
+    % now we need to match current fieldnames in the
+    % structure (b) with variable names of read-in data
+    new_fieldname = matchDataToField(fieldnames(rmfield(b,{'fname','protocol_type'})),m);
+    
+    % not all protocols' variables overlap, leading to empty
+    % arrays/cell arrays -- we need to convert them to arrays
+    % of NaNs if they're found. (if a variable is missing for
+    % a given protocol, that will result in an empty cell
+    % array -- just check for a cell array.)
+    tmp = a.(n{:}).(m{:}); % get the array
+    if(iscell(tmp)), tmp = nan(size(tmp)); end
+    
+    % store into new structure
+    b.(new_fieldname)(q_trial_index) = tmp;
+    
+    % store the type of trial
+    b.protocol_type(q_trial_index) = n(:);
+  end
 end
 
 
@@ -116,10 +117,10 @@ end
 design_struct = bandit_fmri_load_design; % load design file
 
 %N.B. This was the coding in the original data analysis, although you would
-%think "top" refers to finger glove button 2, this is not the case. It has 
-%been confirmed that "top" stim is the left-most image displayed to the 
+%think "top" refers to finger glove button 2, this is not the case. It has
+%been confirmed that "top" stim is the left-most image displayed to the
 %subject, so the order is "top" ,"left", "right" with corresponding buttton
-%glove presses 7,2,3 
+%glove presses 7,2,3
 % q_top   = ( b.stim_RESP == 7 )';
 % q_left  = ( b.stim_RESP == 2 )';
 % q_right = ( b.stim_RESP == 3 )';
@@ -131,12 +132,12 @@ q_right = ( b.stim_RESP == 6 )';
 
 
 
-%Chosen stim refers to A B or C not 2 3 or 7 
+%Chosen stim refers to A B or C not 2 3 or 7
 
 %need to overwrite in behavioral data to reflect 300 stimuli
-stims=readtable('Bandit_withrest/10/stims_10.csv'); %same across participants 
-design_struct.Arew=stims.Arew; 
-design_struct.Brew=stims.Brew; 
+stims=readtable('Bandit_withrest/10/stims_10.csv'); %same across participants
+design_struct.Arew=stims.Arew;
+design_struct.Brew=stims.Brew;
 design_struct.Crew=stims.Crew;
 design_struct.topstim=stims.topstim;
 design_struct.leftstim=stims.leftstim;
@@ -163,9 +164,9 @@ b.chosen_stim = tmp;
 % -- code for stimulus choice switches -- %
 b.stim_switch = zeros(numel(b.chosen_stim),1);
 for n = 2:numel(b.stim_switch)
-    last_stim    = b.chosen_stim(n-1);
-    current_stim = b.chosen_stim(n);
-    b.stim_switch(n) = ne(last_stim,current_stim);
+  last_stim    = b.chosen_stim(n-1);
+  current_stim = b.chosen_stim(n);
+  b.stim_switch(n) = ne(last_stim,current_stim);
 end
 
 % -- code choice switches on the next trial
@@ -176,9 +177,9 @@ q_to_fix  = ( structfun(@numel,b) == numel(b.protocol_type) );
 q_to_keep = ~cellfun(@isempty,b.protocol_type);
 b_fnames = fieldnames(b);
 for n = 1:length(b_fnames)
-    if(q_to_fix(n))
-        b.(b_fnames{n}) = b.(b_fnames{n})(q_to_keep);
-    end
+  if(q_to_fix(n))
+    b.(b_fnames{n}) = b.(b_fnames{n})(q_to_keep);
+  end
 end
 
 % code missed responses
@@ -188,15 +189,15 @@ b.missed_responses = ( b.stim_RT == 0 );
 b.sub_proc = bandit_fMRI_sub_proc(id, b, design_struct, data_dir);
 
 % Create the reward stake vector
-b.stakeVec = ones(length(b.stim_RT),1); 
+b.stakeVec = ones(length(b.stim_RT),1);
 for i = 1:length(b.protocol_type)
-    if (findstr(b.protocol_type{i},'norm'))
-        b.stakeVec(i) = 25;
-    elseif findstr(b.protocol_type{i},'half')
-        b.stakeVec(i) = 10;
-    else 
-        b.stakeVec(i) = 50;
-    end
+  if (findstr(b.protocol_type{i},'norm'))
+    b.stakeVec(i) = 25;
+  elseif findstr(b.protocol_type{i},'half')
+    b.stakeVec(i) = 10;
+  else
+    b.stakeVec(i) = 50;
+  end
 end
 
 % Create subject reward Vecotr (how much they won for specific trial)
@@ -207,7 +208,7 @@ b.rewardVec = b.stakeVec.*b.stim_ACC;
 % 2. Remove trials w/o scanner volumes based on onset times (since trials
 % have unequal duration due to jittering)
 % b_fnames = fieldnames(b);
-% 
+%
 % TR = 750;
 % scan_vol = 925;
 % scan_trial_length = TR * scan_vol;
@@ -217,20 +218,20 @@ b.rewardVec = b.stakeVec.*b.stim_ACC;
 %     censor_time_start = b.stim_OnsetTime(101) + secnd_rn_dur;
 %     censor_time_end = scan_trial_length - secnd_rn_dur + censor_time_start;
 %     censor_idx = find( censor_time_start <= b.feedback_OffsetTime & censor_time_end >= b.stim_OnsetTime );
-%     
+%
 %     for n = 1:length(b_fnames)
 %         if  (length(b.(b_fnames{n})) > 250)
 %             b.(b_fnames{n})(censor_idx)=[];
 %         end
-%     end 
+%     end
 % end
 %%
 
 %% Flag abnormal subjects
 if (id == 202021) %This subject only has 2 blocks of Bandit
-    b.chosen_stim(201:end)=[];
-    b.stim_switch(201:end)=[];
-    b.next_switch(201:end)=[];
+  b.chosen_stim(201:end)=[];
+  b.stim_switch(201:end)=[];
+  b.next_switch(201:end)=[];
 end
 
 %% Find find where the mystery and computer trials are, use to censor later
@@ -263,7 +264,7 @@ b.stakeVec_filtered(~comp_index==myst_index) = [];
 % b.emsd = s.prob.emsd; %Expected value from max squared difference
 % b.essd = s.prob.essd; %Expected value from summed squared difference (trialwise)
 % % code onset of the next trial
-% 
+%
 % %b.stim_NextOnsetTime=[b.stim_OnsetTime(2:300); b.stim_RTTime(300)];
 % %%
 % b.stim_NextOnsetTime=[b.stim_OnsetTime(2:end); b.stim_RTTime(end)]; %This is just a more generic line than above
@@ -284,11 +285,11 @@ file_name=dir_tmp.name;
 fpath     = @(~) [ data_dir filesep sprintf('%d/%s',id,file_name)];
 
 if     exist(fpath(),'file') ~= 0
-
-% read in the data (make sure range to search raw text is correct)
-xout = eprimeread(fpath(),procedure,vars,0,-13,18);
+  % read in the data (make sure range to search raw text is correct)
+  %xout = eprimeread(fpath(),procedure,vars,0,-13,18);
+  xout = eprimeread(fpath(),procedure,vars,0,-6,18); %for behavioral files, -13 matches prior RESP!
 else
-xout = eprimeread(file_name,procedure,vars,0,-13,18);
+  xout = eprimeread(file_name,procedure,vars,0,-13,18);
 end
 return
 
@@ -307,7 +308,7 @@ function nmax = maximumTrialNum(a_secondary_structure,target_fieldname)
 
 nmax = 0;
 for n = fieldnames(a_secondary_structure)'
-    nmax = max([ nmax; a_secondary_structure.(n{:}).(target_fieldname) ]);
+  nmax = max([ nmax; a_secondary_structure.(n{:}).(target_fieldname) ]);
 end
 
 return
@@ -323,19 +324,19 @@ function sout = preallocateStruct(fieldnames_to_trim,n_trials)
 % related variables
 
 for n = fieldnames_to_trim'
-    % set index
-    q = strfind(n{:},'_')+1;
-    if(isempty(q))
-        q = 1;
-        prefix = [];
-    elseif(regexp(n{:},'Feedback'))
-        prefix = 'feedback';
-    else
-        prefix = 'stim';
-    end
-    
-    new_fieldname = [prefix '_' n{:}(q:end)];
-    sout.(new_fieldname) = nan(n_trials,1);
+  % set index
+  q = strfind(n{:},'_')+1;
+  if(isempty(q))
+    q = 1;
+    prefix = [];
+  elseif(regexp(n{:},'Feedback'))
+    prefix = 'feedback';
+  else
+    prefix = 'stim';
+  end
+  
+  new_fieldname = [prefix '_' n{:}(q:end)];
+  sout.(new_fieldname) = nan(n_trials,1);
 end
 
 return
@@ -353,36 +354,36 @@ front_matches     = bool_is_match;
 back_matches      = bool_is_match;
 
 for q_index = 1:numel(struct_fieldnames)
-    
-    front_chunk = fieldname_parts{q_index}{1};
-    back_chunk  = fieldname_parts{q_index}{2};
-    
-    % function handle because I'm lazy (case insensitive)
-    matchVarName = @(s) ~isempty(strfind(lower(in_var),lower( s )));
-    
-    % check if front chunk matches anything in the variable name
-    front_matches(q_index) = matchVarName(front_chunk);
-    if(~front_matches(q_index))
-        odd_man_out = ( matchVarName('mystery') | matchVarName('computer') );
-        if(odd_man_out && strcmp(front_chunk,'stim') && ~matchVarName('feedback'))
-            front_matches(q_index) = true;
-        end
+  
+  front_chunk = fieldname_parts{q_index}{1};
+  back_chunk  = fieldname_parts{q_index}{2};
+  
+  % function handle because I'm lazy (case insensitive)
+  matchVarName = @(s) ~isempty(strfind(lower(in_var),lower( s )));
+  
+  % check if front chunk matches anything in the variable name
+  front_matches(q_index) = matchVarName(front_chunk);
+  if(~front_matches(q_index))
+    odd_man_out = ( matchVarName('mystery') | matchVarName('computer') );
+    if(odd_man_out && strcmp(front_chunk,'stim') && ~matchVarName('feedback'))
+      front_matches(q_index) = true;
     end
-    
-    % check if the back chunk matches
-    back_matches(q_index) = ~isempty(regexp(in_var,['_' back_chunk '$'],'once'));
-    
-    % see which fieldname is a match with the variable
-    bool_is_match(q_index) = ( front_matches(q_index) & back_matches(q_index) );
-    
+  end
+  
+  % check if the back chunk matches
+  back_matches(q_index) = ~isempty(regexp(in_var,['_' back_chunk '$'],'once'));
+  
+  % see which fieldname is a match with the variable
+  bool_is_match(q_index) = ( front_matches(q_index) & back_matches(q_index) );
+  
 end
 
 % make sure there is only one match, otherwise we have a problem
 if(sum(bool_is_match) > 1)
-    % if there are multiple matches...
-    keyboard
+  % if there are multiple matches...
+  keyboard
 else
-    matched_struc_fieldname = struct_fieldnames{bool_is_match};
+  matched_struc_fieldname = struct_fieldnames{bool_is_match};
 end
 
 return
@@ -392,7 +393,7 @@ return
 function foo = createSimpleRegressor(event_begin,event_end,epoch_window,conditional_trial)
 
 if(~exist('conditional_trial','var') || isempty(conditional_trial))
-    conditional_trial = ones(length(event_begin),1);
+  conditional_trial = ones(length(event_begin),1);
 end
 
 % create epoch windows for each trial
@@ -401,9 +402,9 @@ epoch = arrayfun(@(a,b) a:b,event_begin,event_end,'UniformOutput',false);
 foo = zeros(size(epoch_window));
 
 for n = 1:numel(epoch)
-    if(conditional_trial(n))
-        foo = logical(foo + histc(epoch{n},epoch_window));
-    end
+  if(conditional_trial(n))
+    foo = logical(foo + histc(epoch{n},epoch_window));
+  end
 end
 
 return
@@ -414,16 +415,16 @@ function foo = alexSimpleRegressor(event_beg,event_end,RT,onsets,cond,mod1,mod2)
 bar=[];
 idx=cond(find(RT));
 for ct=1:length(onsets)
-    if idx(ct) %>0?
-        int=round(event_beg(ct)./100)+mod1:(round(event_end(ct)./100))+mod2;
-        bar = [bar int];
-    end
+  if idx(ct) %>0?
+    int=round(event_beg(ct)./100)+mod1:(round(event_end(ct)./100))+mod2;
+    bar = [bar int];
+  end
 end
 foo=zeros(1,20814); %hard code bad!
 if bar(1)==0
-    foo(bar(2:end))=1; %remove leading 0 if applicable
+  foo(bar(2:end))=1; %remove leading 0 if applicable
 else
-    foo(bar)=1;
+  foo(bar)=1;
 end
 foo=logical(foo);
 
@@ -438,15 +439,15 @@ function foo = alexParametricRegressor(event_beg,event_end,RT,onsets,cond,mod1,m
 tmp = zeros(1,20814);
 idx=cond(find(RT));
 for ct=1:length(onsets)
-    if idx(ct) 
-        int=round(event_beg(ct)./100)+mod1:(round(event_end(ct)./100))+mod2;
-        %bar = [bar int];
-        if int(1)==0 %Remove leading 0 if applicable
-            tmp(int(2:end))= 1*cond(ct);
-        else
-            tmp(int) = 1*cond(ct);
-        end
+  if idx(ct)
+    int=round(event_beg(ct)./100)+mod1:(round(event_end(ct)./100))+mod2;
+    %bar = [bar int];
+    if int(1)==0 %Remove leading 0 if applicable
+      tmp(int(2:end))= 1*cond(ct);
+    else
+      tmp(int) = 1*cond(ct);
     end
+  end
 end
 % foo=zeros(1,20814); %hard code bad!
 % if bar(1)==0
@@ -472,7 +473,7 @@ event_begin( qbz | qez ) = 0; event_end( qbz | qez ) = 0;
 
 % check if optional parametric variable was used
 if(~exist('parametric_mult','var') || isempty(parametric_mult))
-    parametric_mult = ones(length(event_begin),1);
+  parametric_mult = ones(length(event_begin),1);
 end
 
 % create epoch windows for each trial
@@ -483,7 +484,7 @@ per_event_histcs = cellfun(@(h) logical(histc(h,epoch_window)),epoch,'UniformOut
 
 tmp = zeros(size(per_event_histcs{1}));
 for n = 1:numel(per_event_histcs)
-    tmp = tmp + parametric_mult(n)*per_event_histcs{n};
+  tmp = tmp + parametric_mult(n)*per_event_histcs{n};
 end
 
 foo = tmp;

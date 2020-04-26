@@ -25,6 +25,7 @@ if ~exist('vba_output','dir')
     mkdir('vba_output');
 end
 
+
 %The vanilla version is currently valence=1 decay=1 utility=0
 
 %Set up input arguements
@@ -47,9 +48,9 @@ no_mri = 1;
 
 
 %elements 1:3 are '.', '..', and '.DS_Store' -- verify this on your machine, then drop
-ids = {dirs(3:length(dirs)-1).name};
+ids = {dirs(4:length(dirs)-1).name};
 
-dirs = dirs(3:length(dirs)-1); %for input to Alex's script.
+dirs = dirs(4:length(dirs)-1); %for input to Alex's script.
 
 ids_filt = {'73'}; %terrible subject; others can be added to the vec if desired
 
@@ -80,6 +81,9 @@ so.output_dir = '/Users/mnh5174/Data_Analysis/bandit_scripts/vba_output';
 so.dataset = 'specc';
 so.model = 'twolr_decay';
 
+if ~exist([so.output_dir, filesep, 'b_outputs'],'dir')
+    mkdir(['vba_output' filesep, 'b_outputs']);
+end
 
 %% Load data for each subject into a group structure
 for sub = 1:ns
@@ -92,6 +96,14 @@ for sub = 1:ns
     n_t(sub) = dim.n_t; % allow for variation in number of trials across subjects
   
     delete(strcat('Bandit_withrest/',ids{sub}, '.mat'))  %get rid of superfluous .mat files that are hanging around for some reason.
+    
+    %output b statistics (now corrected eprimeread)
+    error_struct = b.sub_proc.errors;
+    error_struct = rmfield(error_struct, {'before', 'after'});
+    btmp = rmfield(b.sub_proc, {'delta_index', 'errors', 'counts_to_first_C', 'b'});
+    btmp = horzcat(struct2table(btmp), struct2table(error_struct));
+    btmp.id = repmat(ids(sub), size(btmp,1),1);
+    writetable(btmp, sprintf('%s/b_outputs/b_subject%s.csv', so.output_dir, ids{sub}));
     
     y_all{sub} = y;
     u_all{sub} = u;
