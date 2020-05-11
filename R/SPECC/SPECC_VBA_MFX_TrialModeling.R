@@ -1,6 +1,7 @@
 library(lme4)
 library(emmeans)
 library(sjPlot)
+library(tidyverse)
 
 bandit_dir<- "~/Data_Analysis/bandit_scripts"
 #mount_dir <- "/Users/Shared/ics"
@@ -8,7 +9,7 @@ bandit_dir<- "~/Data_Analysis/bandit_scripts"
 #basedir <- paste0(mount_dir,"/Michael/bpd_rest")
 
 fc_data <- read.csv(file=file.path(bandit_dir, "R", "SPECC", "specc_fc_ridge_data.csv"))
-fcvars <- grep("^X.*", names(tomodel), value=TRUE) #all edges
+fcvars <- grep("^X.*", names(fc_data), value=TRUE) #all edges
 
 #are there big group diffs in FC in these edges? there should be a lot since we're selecting on logit(BPD ~ FC)
 for(vv in fcvars) {
@@ -132,4 +133,48 @@ simple_slopes(thism, levels=predlist)
 plot_model(thism, type = "pred", terms=c("prev_vdiff", "fc", "BPDfac"))
 lattice::histogram(~X88_99|BPD_fac, fc_data) #it is one where there's a group difference, but also a lot of overlap
 t.test(X88_99~BPD_fac, fc_data)
+
+
+## look at FC relevance to the task before we build up a complicated model
+
+
+allres <- c()
+mlist <- list()
+for (vv in fcvars) {
+  df1 <- tomodel
+  df1$fc <- tomodel[[vv]] #current fc
+  mm <- lmer(invRT ~ prev_invRT + trial_z + prev_rewarded +
+              prev_absPE*fc + prev_vchosen*fc*prev_absPE + (1 | NUM_ID), df1)
+  #str(car::Anova(mm, type=3))
+  #res <- tidy(mm)
+  res <- car::Anova(mm, type=3) %>% mutate(eff=row.names(.)) %>% filter(grepl("fc", eff)) %>% mutate(fc=vv) %>%
+    dplyr::rename(pval=`Pr(>Chisq)`) %>% select(fc, eff, everything())
+  allres <- rbind(allres, res)
+  mlist[[vv]] <- mm
+}
+
+#screen results
+allres %>% filter(pval < .05)
+
+#how about 161_202 as an example?
+thism <- mlist[["X161_202"]]
+summary(thism)
+emtrends(thism, var="prev_vdiff", specs=~BPDfac)
+
+qfc <- quantile(fc_data$X161_202, c(.25, .5, .75)) %>% round(3)
+qvc <- quantile(tomodel$prev_vchosen, c(.25, .5, .75), na.rm=T) %>% round(3)
+
+predlist <- list(fc=qfc, prev_vchosen=c(qvc, "sstest"))
+simple_slopes(thism, levels=predlist)
+
+#manually look at 161_202
+#NB. We should probably be using prev_switch_choice in general since at the moemnt, switch choice models the impact of
+#a shift that is about to happen on that shift's RT... this is interesting (basically a cognitive lag), but is
+#different in spirit.
+vv <- "X161_202"
+df1$fc <- tomodel[[vv]] #current fc
+mm <- lmer(invRT ~ prev_invRT*fc + trial_z + prev_rewarded + switch_choice +
+             prev_vchosen*fc + (1 | NUM_ID), df1)
+summary(mm)
+car::Anova(mm, type=3)
 
