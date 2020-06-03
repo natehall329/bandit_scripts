@@ -3,8 +3,12 @@
 
 pacman::p_load(R.matlab, tidyverse, dependlab, sigmoid, beepr, psych,MuMIn)
 
-bandit_dir<- "/Users/nth7/Desktop/bandit_scripts"
-mount_dir <- "/mnt/ics"
+# bandit_dir<- "/Users/nth7/Desktop/bandit_scripts"
+# mount_dir <- "/mnt/ics"
+
+bandit_dir<- "~/Data_Analysis/bandit_scripts"
+mount_dir <- "/Users/Shared/ics"
+
 
 out <-  readMat(paste0(bandit_dir, "/vba_output/all_bandit_vba_output_valence_31-Jul-2019_.mat")) #takes some time.
 beepr::beep()
@@ -160,8 +164,8 @@ if(file.exists(paste0(basedir,"/cache/neural_mediators.RData"))){
     y <- unique(x$rowname)
     names <- gsub("_l", "", y)
     out <- list()
-    for(i in names){
-      for(j in scaled){
+    for(i in names) {
+      for(j in scaled) {
         effects <- j[,which(grepl(gsub("`", "",i),colnames(j)))]
         effects <- effects[,which(!grepl("_l", colnames(effects)))]
         if(length(effects != 0)){

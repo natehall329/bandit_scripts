@@ -8,6 +8,28 @@ library(lme4)
 
 bandit_dir<- "~/Data_Analysis/bandit_scripts"
 
+# Node        x     y     z     Node number
+# L OFC     -10    33   -20     56
+# L vmPFC    -6    35   -10     84
+# L rmPFC   -13    61    -4     86
+# L rACC     -6    43     8     88
+# L dmPFC    -9    57    20     89
+# L dACC     -6    29    25     90
+# R OFC      12    37   -21     159
+# R rmPFC    15    63    -6     161
+# R dACC      7    29    29     180
+# R vmPFC     5    36   -14     191
+# R rACC      8    41     5     192
+# R dACC      5    28    16     193
+# R dmPFC     9    56    19     194
+# L BLA     -25    -5   -22     201
+# R BLA      25    -3   -22     202
+# L CMN     -20    -6   -15     203
+# R CMN      19    -5   -15     204
+# L VS      -13    12    -8     215
+# R VS       11    13    -8     220
+
+
 fc_data <- read.csv(file=file.path(bandit_dir, "R", "SPECC", "specc_fc_ridge_data.csv"))
 fcvars <- grep("^X.*", names(fc_data), value=TRUE) #all edges
 
