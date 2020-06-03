@@ -1,0 +1,1030 @@
+
+R version 3.6.2 (2019-12-12) -- "Dark and Stormy Night"
+Copyright (C) 2019 The R Foundation for Statistical Computing
+Platform: x86_64-apple-darwin15.6.0 (64-bit)
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+> #win-stay, lose-switch analyses
+> #use the coupling of prev_rewarded (t-1) -> switch_choice (t) as the primary index that can be
+> #moderated by individual differences
+> 
+> library(dplyr)
+
+Attaching package: ‘dplyr’
+
+The following objects are masked from ‘package:stats’:
+
+    filter, lag
+
+The following objects are masked from ‘package:base’:
+
+    intersect, setdiff, setequal, union
+
+> library(MplusAutomation)
+Version:  0.7-3
+We work hard to write this free software. Please help us get credit by citing: 
+
+Hallquist, M. N. & Wiley, J. F. (2018). MplusAutomation: An R Package for Facilitating Large-Scale Latent Variable Analyses in Mplus. Structural Equation Modeling, 25, 621-638. doi: 10.1080/10705511.2017.1402334.
+
+-- see citation("MplusAutomation").
+> library(lme4)
+Loading required package: Matrix
+> 
+> bandit_dir<- "~/Data_Analysis/bandit_scripts"
+> 
+> fc_data <- read.csv(file=file.path(bandit_dir, "R", "SPECC", "specc_fc_ridge_data.csv"))
+> fcvars <- grep("^X.*", names(fc_data), value=TRUE) #all edges
+> 
+> tomodel <- read.csv(file=file.path(bandit_dir, "R", "SPECC", "specc_trial_level_model_data.csv.bz2")) %>%
++   mutate(BPDfac=factor(BPD, levels=c(0,1), labels=c("HC", "BPD")),
++          #prev_rewarded=factor(prev_rewarded, levels=c(0,1), labels=c("no", "yes")),
++          trial_z = as.vector(scale(trial)))
+> 
+> #start by getting basic model 'right': current shift predicted by previous characteristics
+> mm1 <- glmer(switch_choice ~ prev_invRT + trial_z + prev_rewarded + prev_vchosen + (1 | NUM_ID), tomodel, family=binomial())
+> summary(mm1)
+Generalized linear mixed model fit by maximum likelihood (Laplace
+  Approximation) [glmerMod]
+ Family: binomial  ( logit )
+Formula: switch_choice ~ prev_invRT + trial_z + prev_rewarded + prev_vchosen +  
+    (1 | NUM_ID)
+   Data: tomodel
+
+     AIC      BIC   logLik deviance df.resid 
+ 16128.2  16176.4  -8058.1  16116.2    22750 
+
+Scaled residuals: 
+    Min      1Q  Median      3Q     Max 
+-4.2106 -0.3856 -0.1688 -0.0637 15.0035 
+
+Random effects:
+ Groups Name        Variance Std.Dev.
+ NUM_ID (Intercept) 0.6947   0.8335  
+Number of obs: 22756, groups:  NUM_ID, 78
+
+Fixed effects:
+              Estimate Std. Error z value Pr(>|z|)    
+(Intercept)    0.81428    0.11187   7.279 3.37e-13 ***
+prev_invRT     0.04992    0.02285   2.185   0.0289 *  
+trial_z       -0.01283    0.02279  -0.563   0.5736    
+prev_rewarded -1.83314    0.04530 -40.463  < 2e-16 ***
+prev_vchosen  -3.11798    0.06697 -46.555  < 2e-16 ***
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+Correlation of Fixed Effects:
+            (Intr) prv_RT tril_z prv_rw
+prev_invRT   0.440                     
+trial_z      0.167  0.139              
+prev_rewrdd -0.122 -0.025 -0.130       
+prev_vchosn -0.210 -0.010 -0.227 -0.026
+> car::Anova(mm1, type=3)
+Registered S3 methods overwritten by 'car':
+  method                          from
+  influence.merMod                lme4
+  cooks.distance.influence.merMod lme4
+  dfbeta.influence.merMod         lme4
+  dfbetas.influence.merMod        lme4
+Analysis of Deviance Table (Type III Wald chisquare tests)
+
+Response: switch_choice
+                  Chisq Df Pr(>Chisq)    
+(Intercept)     52.9783  1  3.373e-13 ***
+prev_invRT       4.7733  1     0.0289 *  
+trial_z          0.3168  1     0.5736    
+prev_rewarded 1637.2501  1  < 2.2e-16 ***
+prev_vchosen  2167.3460  1  < 2.2e-16 ***
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+> car::vif(mm1)
+   prev_invRT       trial_z prev_rewarded  prev_vchosen 
+     1.020408      1.096760      1.020745      1.058579 
+> 
+> #allow reward x value interaction
+> mm2 <- glmer(switch_choice ~ prev_invRT + trial_z + prev_rewarded * prev_vchosen + (1 | NUM_ID), tomodel, family=binomial())
+> summary(mm2)
+Generalized linear mixed model fit by maximum likelihood (Laplace
+  Approximation) [glmerMod]
+ Family: binomial  ( logit )
+Formula: switch_choice ~ prev_invRT + trial_z + prev_rewarded * prev_vchosen +  
+    (1 | NUM_ID)
+   Data: tomodel
+
+     AIC      BIC   logLik deviance df.resid 
+ 16110.3  16166.6  -8048.2  16096.3    22749 
+
+Scaled residuals: 
+    Min      1Q  Median      3Q     Max 
+-4.2682 -0.3806 -0.1798 -0.0706 13.4937 
+
+Random effects:
+ Groups Name        Variance Std.Dev.
+ NUM_ID (Intercept) 0.7052   0.8397  
+Number of obs: 22756, groups:  NUM_ID, 78
+
+Fixed effects:
+                            Estimate Std. Error z value Pr(>|z|)    
+(Intercept)                 0.875174   0.113554   7.707 1.29e-14 ***
+prev_invRT                  0.051247   0.023047   2.224   0.0262 *  
+trial_z                    -0.009333   0.022856  -0.408   0.6830    
+prev_rewarded              -2.033382   0.064381 -31.583  < 2e-16 ***
+prev_vchosen               -3.303641   0.079892 -41.351  < 2e-16 ***
+prev_rewarded:prev_vchosen  0.567769   0.126387   4.492 7.05e-06 ***
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+Correlation of Fixed Effects:
+            (Intr) prv_RT tril_z prv_rw prv_vc
+prev_invRT   0.439                            
+trial_z      0.169  0.141                     
+prev_rewrdd -0.169 -0.027 -0.117              
+prev_vchosn -0.240 -0.016 -0.208  0.344       
+prv_rwrdd:_  0.124  0.014  0.035 -0.712 -0.541
+> car::Anova(mm2, type=3)
+Analysis of Deviance Table (Type III Wald chisquare tests)
+
+Response: switch_choice
+                               Chisq Df Pr(>Chisq)    
+(Intercept)                  59.3992  1  1.287e-14 ***
+prev_invRT                    4.9445  1    0.02617 *  
+trial_z                       0.1667  1    0.68304    
+prev_rewarded               997.5153  1  < 2.2e-16 ***
+prev_vchosen               1709.9157  1  < 2.2e-16 ***
+prev_rewarded:prev_vchosen   20.1807  1  7.046e-06 ***
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+> car::vif(mm2) #some troubling collinearity between prev_rewarded and the v x reward interaction
+                prev_invRT                    trial_z 
+                  1.020816                   1.100669 
+             prev_rewarded               prev_vchosen 
+                  2.084025                   1.505102 
+prev_rewarded:prev_vchosen 
+                  2.614254 
+> 
+> anova(mm1, mm2)
+Data: tomodel
+Models:
+mm1: switch_choice ~ prev_invRT + trial_z + prev_rewarded + prev_vchosen + 
+mm1:     (1 | NUM_ID)
+mm2: switch_choice ~ prev_invRT + trial_z + prev_rewarded * prev_vchosen + 
+mm2:     (1 | NUM_ID)
+    Df   AIC   BIC  logLik deviance  Chisq Chi Df Pr(>Chisq)    
+mm1  6 16128 16176 -8058.1    16116                             
+mm2  7 16110 16167 -8048.2    16096 19.909      1   8.12e-06 ***
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+> 
+> #add abs PE
+> mm3 <- glmer(switch_choice ~ prev_invRT + trial_z + prev_rewarded + prev_vchosen + prev_absPE + (1 | NUM_ID), tomodel, family=binomial())
+> summary(mm3)
+Generalized linear mixed model fit by maximum likelihood (Laplace
+  Approximation) [glmerMod]
+ Family: binomial  ( logit )
+Formula: switch_choice ~ prev_invRT + trial_z + prev_rewarded + prev_vchosen +  
+    prev_absPE + (1 | NUM_ID)
+   Data: tomodel
+
+     AIC      BIC   logLik deviance df.resid 
+ 16110.3  16166.6  -8048.2  16096.3    22749 
+
+Scaled residuals: 
+    Min      1Q  Median      3Q     Max 
+-4.2682 -0.3806 -0.1798 -0.0706 13.4937 
+
+Random effects:
+ Groups Name        Variance Std.Dev.
+ NUM_ID (Intercept) 0.7052   0.8397  
+Number of obs: 22756, groups:  NUM_ID, 78
+
+Fixed effects:
+               Estimate Std. Error z value Pr(>|z|)    
+(Intercept)    0.875181   0.113547   7.708 1.28e-14 ***
+prev_invRT     0.051248   0.023046   2.224   0.0262 *  
+trial_z       -0.009332   0.022856  -0.408   0.6831    
+prev_rewarded -1.749496   0.048443 -36.114  < 2e-16 ***
+prev_vchosen  -3.019761   0.070116 -43.068  < 2e-16 ***
+prev_absPE    -0.283884   0.063191  -4.493 7.04e-06 ***
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+Correlation of Fixed Effects:
+            (Intr) prv_RT tril_z prv_rw prv_vc
+prev_invRT   0.439                            
+trial_z      0.169  0.141                     
+prev_rewrdd -0.063 -0.018 -0.110              
+prev_vchosn -0.161 -0.005 -0.206  0.040       
+prev_absPE  -0.124 -0.014 -0.035 -0.359 -0.285
+> car::Anova(mm3, type=3)
+Analysis of Deviance Table (Type III Wald chisquare tests)
+
+Response: switch_choice
+                  Chisq Df Pr(>Chisq)    
+(Intercept)     59.4080  1  1.281e-14 ***
+prev_invRT       4.9448  1    0.02617 *  
+trial_z          0.1667  1    0.68306    
+prev_rewarded 1304.2436  1  < 2.2e-16 ***
+prev_vchosen  1854.8346  1  < 2.2e-16 ***
+prev_absPE      20.1826  1  7.039e-06 ***
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+> car::vif(mm3)
+   prev_invRT       trial_z prev_rewarded  prev_vchosen    prev_absPE 
+     1.020814      1.100664      1.179928      1.159347      1.281115 
+> 
+> #switch to signed PE: large positive should lead to 'stay'; large negative to 'switch'
+> #N.B. Model is rank deficient if we have reward, vchosen, and PE in the model
+> #PE should stand in for prev_rewarded in terms of its conceptual role
+> #this model strengthens the value effect
+> mm4 <- glmer(switch_choice ~ prev_invRT + trial_z + prev_vchosen + prev_PE + (1 | NUM_ID), tomodel, family=binomial())
+> summary(mm4)
+Generalized linear mixed model fit by maximum likelihood (Laplace
+  Approximation) [glmerMod]
+ Family: binomial  ( logit )
+Formula: switch_choice ~ prev_invRT + trial_z + prev_vchosen + prev_PE +  
+    (1 | NUM_ID)
+   Data: tomodel
+
+     AIC      BIC   logLik deviance df.resid 
+ 16128.2  16176.4  -8058.1  16116.2    22750 
+
+Scaled residuals: 
+    Min      1Q  Median      3Q     Max 
+-4.2107 -0.3856 -0.1688 -0.0637 15.0035 
+
+Random effects:
+ Groups Name        Variance Std.Dev.
+ NUM_ID (Intercept) 0.6947   0.8335  
+Number of obs: 22756, groups:  NUM_ID, 78
+
+Fixed effects:
+             Estimate Std. Error z value Pr(>|z|)    
+(Intercept)   0.81428    0.11187   7.278 3.38e-13 ***
+prev_invRT    0.04992    0.02285   2.185   0.0289 *  
+trial_z      -0.01283    0.02279  -0.563   0.5735    
+prev_vchosen -4.95112    0.07988 -61.984  < 2e-16 ***
+prev_PE      -1.83314    0.04530 -40.463  < 2e-16 ***
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+Correlation of Fixed Effects:
+            (Intr) prv_RT tril_z prv_vc
+prev_invRT   0.440                     
+trial_z      0.167  0.139              
+prev_vchosn -0.246 -0.023 -0.265       
+prev_PE     -0.122 -0.025 -0.130  0.545
+> car::Anova(mm4, type=3)
+Analysis of Deviance Table (Type III Wald chisquare tests)
+
+Response: switch_choice
+                 Chisq Df Pr(>Chisq)    
+(Intercept)    52.9760  1  3.376e-13 ***
+prev_invRT      4.7739  1    0.02889 *  
+trial_z         0.3169  1    0.57347    
+prev_vchosen 3841.9839  1  < 2.2e-16 ***
+prev_PE      1637.2563  1  < 2.2e-16 ***
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+> car::vif(mm4)
+  prev_invRT      trial_z prev_vchosen      prev_PE 
+    1.020408     1.096761     1.505723     1.424256 
+> 
+> anova(mm1, mm2, mm3, mm4)
+Data: tomodel
+Models:
+mm1: switch_choice ~ prev_invRT + trial_z + prev_rewarded + prev_vchosen + 
+mm1:     (1 | NUM_ID)
+mm4: switch_choice ~ prev_invRT + trial_z + prev_vchosen + prev_PE + 
+mm4:     (1 | NUM_ID)
+mm2: switch_choice ~ prev_invRT + trial_z + prev_rewarded * prev_vchosen + 
+mm2:     (1 | NUM_ID)
+mm3: switch_choice ~ prev_invRT + trial_z + prev_rewarded + prev_vchosen + 
+mm3:     prev_absPE + (1 | NUM_ID)
+    Df   AIC   BIC  logLik deviance  Chisq Chi Df Pr(>Chisq)    
+mm1  6 16128 16176 -8058.1    16116                             
+mm4  6 16128 16176 -8058.1    16116  0.000      0  < 2.2e-16 ***
+mm2  7 16110 16167 -8048.2    16096 19.909      1   8.12e-06 ***
+mm3  7 16110 16167 -8048.2    16096  0.000      0          1    
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+> 
+> # a few interim conclusions:
+> # 1) if the previous choice was rewarded, p(switch) is much lower
+> # 2) if the previous choice was of high value (exploitation), p(switch) is much lower
+> # 3) if the previous result was associated with a large abs prediction, switch is less likely
+> # 4) need to sort out the equivalency of mm1==mm4 and mm2==mm3 (has to do with how value, PE, and reward play together)
+> 
+> #is there more switching as a function of BPD?
+> mmbpd <- glmer(switch_choice ~ prev_invRT + trial_z + prev_vchosen + prev_PE + BPDfac + (1 | NUM_ID), tomodel, family=binomial())
+> summary(mmbpd) #not in an omnibus (additive) sense
+Generalized linear mixed model fit by maximum likelihood (Laplace
+  Approximation) [glmerMod]
+ Family: binomial  ( logit )
+Formula: switch_choice ~ prev_invRT + trial_z + prev_vchosen + prev_PE +  
+    BPDfac + (1 | NUM_ID)
+   Data: tomodel
+
+     AIC      BIC   logLik deviance df.resid 
+ 16130.2  16186.5  -8058.1  16116.2    22749 
+
+Scaled residuals: 
+    Min      1Q  Median      3Q     Max 
+-4.2103 -0.3856 -0.1688 -0.0637 15.0062 
+
+Random effects:
+ Groups Name        Variance Std.Dev.
+ NUM_ID (Intercept) 0.6947   0.8335  
+Number of obs: 22756, groups:  NUM_ID, 78
+
+Fixed effects:
+             Estimate Std. Error z value Pr(>|z|)    
+(Intercept)   0.80907    0.14761   5.481 4.23e-08 ***
+prev_invRT    0.04994    0.02285   2.185   0.0289 *  
+trial_z      -0.01283    0.02279  -0.563   0.5735    
+prev_vchosen -4.95111    0.07988 -61.986  < 2e-16 ***
+prev_PE      -1.83315    0.04530 -40.464  < 2e-16 ***
+BPDfacBPD     0.01049    0.19349   0.054   0.9567    
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+Correlation of Fixed Effects:
+            (Intr) prv_RT tril_z prv_vc prv_PE
+prev_invRT   0.328                            
+trial_z      0.128  0.139                     
+prev_vchosn -0.186 -0.023 -0.265              
+prev_PE     -0.090 -0.025 -0.130  0.545       
+BPDfacBPD   -0.652  0.008 -0.002  0.001 -0.003
+> 
+> #what about interactions with value or PE?
+> mmbpd2 <- glmer(switch_choice ~ prev_invRT + trial_z + prev_vchosen + prev_PE * BPDfac + (1 | NUM_ID), tomodel, family=binomial())
+> summary(mmbpd2)
+Generalized linear mixed model fit by maximum likelihood (Laplace
+  Approximation) [glmerMod]
+ Family: binomial  ( logit )
+Formula: switch_choice ~ prev_invRT + trial_z + prev_vchosen + prev_PE *  
+    BPDfac + (1 | NUM_ID)
+   Data: tomodel
+
+     AIC      BIC   logLik deviance df.resid 
+ 16131.6  16195.9  -8057.8  16115.6    22748 
+
+Scaled residuals: 
+    Min      1Q  Median      3Q     Max 
+-4.1939 -0.3852 -0.1688 -0.0637 15.0438 
+
+Random effects:
+ Groups Name        Variance Std.Dev.
+ NUM_ID (Intercept) 0.693    0.8325  
+Number of obs: 22756, groups:  NUM_ID, 78
+
+Fixed effects:
+                  Estimate Std. Error z value Pr(>|z|)    
+(Intercept)        0.80724    0.14746   5.474 4.39e-08 ***
+prev_invRT         0.04994    0.02284   2.187   0.0288 *  
+trial_z           -0.01290    0.02279  -0.566   0.5712    
+prev_vchosen      -4.95195    0.07989 -61.987  < 2e-16 ***
+prev_PE           -1.86334    0.05943 -31.355  < 2e-16 ***
+BPDfacBPD          0.01397    0.19330   0.072   0.9424    
+prev_PE:BPDfacBPD  0.05977    0.07589   0.788   0.4309    
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+Correlation of Fixed Effects:
+            (Intr) prv_RT tril_z prv_vc prv_PE BPDBPD
+prev_invRT   0.328                                   
+trial_z      0.128  0.139                            
+prev_vchosn -0.186 -0.023 -0.264                     
+prev_PE     -0.058 -0.020 -0.097  0.426              
+BPDfacBPD   -0.652  0.008 -0.002  0.000 -0.018       
+p_PE:BPDBPD -0.015  0.001 -0.004 -0.016 -0.647  0.023
+> car::Anova(mmbpd2, type=3) #No
+Analysis of Deviance Table (Type III Wald chisquare tests)
+
+Response: switch_choice
+                   Chisq Df Pr(>Chisq)    
+(Intercept)      29.9670  1  4.395e-08 ***
+prev_invRT        4.7815  1    0.02877 *  
+trial_z           0.3207  1    0.57121    
+prev_vchosen   3842.4175  1  < 2.2e-16 ***
+prev_PE         983.1419  1  < 2.2e-16 ***
+BPDfac            0.0052  1    0.94239    
+prev_PE:BPDfac    0.6203  1    0.43094    
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+> 
+> mmbpd3 <- glmer(switch_choice ~ prev_invRT + trial_z + prev_vchosen * BPDfac + prev_PE + (1 | NUM_ID), tomodel, family=binomial())
+> summary(mmbpd3)
+Generalized linear mixed model fit by maximum likelihood (Laplace
+  Approximation) [glmerMod]
+ Family: binomial  ( logit )
+Formula: switch_choice ~ prev_invRT + trial_z + prev_vchosen * BPDfac +  
+    prev_PE + (1 | NUM_ID)
+   Data: tomodel
+
+     AIC      BIC   logLik deviance df.resid 
+ 16132.2  16196.4  -8058.1  16116.2    22748 
+
+Scaled residuals: 
+    Min      1Q  Median      3Q     Max 
+-4.1883 -0.3857 -0.1689 -0.0638 14.9222 
+
+Random effects:
+ Groups Name        Variance Std.Dev.
+ NUM_ID (Intercept) 0.6935   0.8328  
+Number of obs: 22756, groups:  NUM_ID, 78
+
+Fixed effects:
+                       Estimate Std. Error z value Pr(>|z|)    
+(Intercept)             0.80410    0.14903   5.396 6.83e-08 ***
+prev_invRT              0.04993    0.02285   2.185   0.0289 *  
+trial_z                -0.01291    0.02279  -0.567   0.5710    
+prev_vchosen           -4.93645    0.10214 -48.331  < 2e-16 ***
+BPDfacBPD               0.02049    0.19808   0.103   0.9176    
+prev_PE                -1.83314    0.04530 -40.463  < 2e-16 ***
+prev_vchosen:BPDfacBPD -0.02993    0.13027  -0.230   0.8183    
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+Correlation of Fixed Effects:
+            (Intr) prv_RT tril_z prv_vc BPDBPD prv_PE
+prev_invRT   0.325                                   
+trial_z      0.129  0.139                            
+prev_vchosn -0.234 -0.018 -0.217                     
+BPDfacBPD   -0.661  0.008 -0.005  0.137              
+prev_PE     -0.089 -0.025 -0.130  0.427 -0.003       
+prv_:BPDBPD  0.144  0.000  0.016 -0.623 -0.219 -0.001
+> car::Anova(mmbpd3, type=3) #Not here either
+Analysis of Deviance Table (Type III Wald chisquare tests)
+
+Response: switch_choice
+                        Chisq Df Pr(>Chisq)    
+(Intercept)           29.1136  1  6.826e-08 ***
+prev_invRT             4.7753  1    0.02887 *  
+trial_z                0.3211  1    0.57095    
+prev_vchosen        2335.8428  1  < 2.2e-16 ***
+BPDfac                 0.0107  1    0.91761    
+prev_PE             1637.2531  1  < 2.2e-16 ***
+prev_vchosen:BPDfac    0.0528  1    0.81827    
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+> 
+> mmbpd4 <- glmer(switch_choice ~ prev_invRT + trial_z + prev_rewarded*BPDfac + prev_vchosen + prev_absPE + (1 | NUM_ID), tomodel, family=binomial())
+> summary(mmbpd4)
+Generalized linear mixed model fit by maximum likelihood (Laplace
+  Approximation) [glmerMod]
+ Family: binomial  ( logit )
+Formula: switch_choice ~ prev_invRT + trial_z + prev_rewarded * BPDfac +  
+    prev_vchosen + prev_absPE + (1 | NUM_ID)
+   Data: tomodel
+
+     AIC      BIC   logLik deviance df.resid 
+ 16113.1  16185.4  -8047.6  16095.1    22747 
+
+Scaled residuals: 
+    Min      1Q  Median      3Q     Max 
+-4.3174 -0.3800 -0.1800 -0.0709 13.7806 
+
+Random effects:
+ Groups Name        Variance Std.Dev.
+ NUM_ID (Intercept) 0.7064   0.8405  
+Number of obs: 22756, groups:  NUM_ID, 78
+
+Fixed effects:
+                         Estimate Std. Error z value Pr(>|z|)    
+(Intercept)              0.881215   0.149984   5.875 4.22e-09 ***
+prev_invRT               0.051309   0.023035   2.227   0.0259 *  
+trial_z                 -0.009106   0.022858  -0.398   0.6903    
+prev_rewarded           -1.797797   0.065711 -27.359  < 2e-16 ***
+BPDfacBPD               -0.010246   0.196695  -0.052   0.9585    
+prev_vchosen            -3.018126   0.070112 -43.047  < 2e-16 ***
+prev_absPE              -0.288902   0.063331  -4.562 5.07e-06 ***
+prev_rewarded:BPDfacBPD  0.097909   0.089220   1.097   0.2725    
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+Correlation of Fixed Effects:
+            (Intr) prv_RT tril_z prv_rw BPDBPD prv_vc prv_PE
+prev_invRT   0.327                                          
+trial_z      0.130  0.141                                   
+prev_rewrdd -0.095 -0.015 -0.087                            
+BPDfacBPD   -0.653  0.008 -0.003  0.085                     
+prev_vchosn -0.124 -0.005 -0.206  0.017  0.002              
+prev_absPE  -0.096 -0.014 -0.035 -0.216  0.002 -0.285       
+prv_:BPDBPD  0.090  0.002  0.009 -0.676 -0.129  0.017 -0.070
+> car::Anova(mmbpd4, type=3) #Not here either
+Analysis of Deviance Table (Type III Wald chisquare tests)
+
+Response: switch_choice
+                         Chisq Df Pr(>Chisq)    
+(Intercept)            34.5204  1  4.218e-09 ***
+prev_invRT              4.9613  1    0.02592 *  
+trial_z                 0.1587  1    0.69034    
+prev_rewarded         748.5272  1  < 2.2e-16 ***
+BPDfac                  0.0027  1    0.95846    
+prev_vchosen         1853.0492  1  < 2.2e-16 ***
+prev_absPE             20.8101  1  5.071e-06 ***
+prev_rewarded:BPDfac    1.2043  1    0.27247    
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+> 
+> 
+> #thus, BPD is not associated with more jumpiness or overall differences in the coupling of reward or value with win-stay lose-shift.
+> #but FC in selected edges could modulate win-stay lose-shift (model-free) or the coupling of value with staying.
+> #it's also noteworthy that the above models do not allow for random slopes (individual differences) in prev_rewarded or prev_vchosen
+> #these could shift whether we see BPD moderation.
+> 
+> mmbpd5 <- glmer(switch_choice ~ prev_invRT + trial_z + prev_rewarded*BPDfac + prev_vchosen*BPDfac + (1 + prev_vchosen + prev_rewarded | NUM_ID), tomodel, family=binomial())
+Warning message:
+In checkConv(attr(opt, "derivs"), opt$par, ctrl = control$checkConv,  :
+  Model failed to converge with max|grad| = 0.0336241 (tol = 0.001, component 1)
+> summary(mmbpd5) #very sizeable variance components for the vchosen and prev_rewarded slopes (great for indiv diffs!)
+Generalized linear mixed model fit by maximum likelihood (Laplace
+  Approximation) [glmerMod]
+ Family: binomial  ( logit )
+Formula: switch_choice ~ prev_invRT + trial_z + prev_rewarded * BPDfac +  
+    prev_vchosen * BPDfac + (1 + prev_vchosen + prev_rewarded |      NUM_ID)
+   Data: tomodel
+
+     AIC      BIC   logLik deviance df.resid 
+ 15587.0  15699.5  -7779.5  15559.0    22742 
+
+Scaled residuals: 
+    Min      1Q  Median      3Q     Max 
+-2.8240 -0.3598 -0.1329 -0.0178 26.4980 
+
+Random effects:
+ Groups Name          Variance Std.Dev. Corr       
+ NUM_ID (Intercept)   0.4718   0.6869              
+        prev_vchosen  1.9636   1.4013    0.24      
+        prev_rewarded 0.9829   0.9914   -0.04  0.03
+Number of obs: 22756, groups:  NUM_ID, 78
+
+Fixed effects:
+                         Estimate Std. Error z value Pr(>|z|)    
+(Intercept)              0.871636   0.129577   6.727 1.73e-11 ***
+prev_invRT               0.019746   0.022853   0.864    0.388    
+trial_z                  0.009199   0.023351   0.394    0.694    
+prev_rewarded           -2.138498   0.185819 -11.509  < 2e-16 ***
+BPDfacBPD                0.028344   0.169297   0.167    0.867    
+prev_vchosen            -3.615594   0.251831 -14.357  < 2e-16 ***
+prev_rewarded:BPDfacBPD  0.144020   0.255146   0.564    0.572    
+BPDfacBPD:prev_vchosen  -0.075920   0.354837  -0.214    0.831    
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+Correlation of Fixed Effects:
+            (Intr) prv_RT tril_z prv_rw BPDfBPD prv_vc p_:BPD
+prev_invRT   0.371                                           
+trial_z      0.146  0.123                                    
+prev_rewrdd -0.078 -0.009 -0.028                             
+BPDfacBPD   -0.649  0.007 -0.006  0.054                      
+prev_vchosn  0.078  0.004 -0.072  0.010 -0.067               
+prv_:BPDBPD  0.051  0.002  0.000 -0.704 -0.081  -0.005       
+BPDfcBPD:p_ -0.063 -0.005  0.007 -0.007  0.092  -0.697  0.012
+convergence code: 0
+Model failed to converge with max|grad| = 0.0336241 (tol = 0.001, component 1)
+
+> car::Anova(mmbpd5, type=3)
+Analysis of Deviance Table (Type III Wald chisquare tests)
+
+Response: switch_choice
+                        Chisq Df Pr(>Chisq)    
+(Intercept)           45.2498  1  1.734e-11 ***
+prev_invRT             0.7466  1     0.3876    
+trial_z                0.1552  1     0.6936    
+prev_rewarded        132.4460  1  < 2.2e-16 ***
+BPDfac                 0.0280  1     0.8670    
+prev_vchosen         206.1291  1  < 2.2e-16 ***
+prev_rewarded:BPDfac   0.3186  1     0.5724    
+BPDfac:prev_vchosen    0.0458  1     0.8306    
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+> 
+> #add brain FC to see if it relates to key effects
+> #drop BPD, Age, rl params in fc_data before join -- all exist in tomodel
+> tomodel <- tomodel %>% left_join(fc_data %>% select(NUM_ID, starts_with("X")) , by="NUM_ID")
+> 
+> #prototype: manually look at 161_202, which had relevance in RT models
+> vv <- "X161_202"
+> df1 <- tomodel
+> df1$fc <- tomodel[[vv]] #current fc
+> 
+> #fc variant of mm3 above -- yes, fc strongly interacts with prev_rewarded
+> mmfc1 <- glmer(switch_choice ~ fc + prev_invRT + trial_z + fc*prev_rewarded + fc*prev_vchosen + fc*prev_absPE + (1 | NUM_ID), df1, family=binomial())
+Warning message:
+In checkConv(attr(opt, "derivs"), opt$par, ctrl = control$checkConv,  :
+  Model failed to converge with max|grad| = 0.00116976 (tol = 0.001, component 1)
+> summary(mmfc1)
+Generalized linear mixed model fit by maximum likelihood (Laplace
+  Approximation) [glmerMod]
+ Family: binomial  ( logit )
+Formula: switch_choice ~ fc + prev_invRT + trial_z + fc * prev_rewarded +  
+    fc * prev_vchosen + fc * prev_absPE + (1 | NUM_ID)
+   Data: df1
+
+     AIC      BIC   logLik deviance df.resid 
+ 15995.6  16084.0  -7986.8  15973.6    22745 
+
+Scaled residuals: 
+    Min      1Q  Median      3Q     Max 
+-4.3750 -0.3704 -0.1756 -0.0676 13.0916 
+
+Random effects:
+ Groups Name        Variance Std.Dev.
+ NUM_ID (Intercept) 0.7108   0.8431  
+Number of obs: 22756, groups:  NUM_ID, 78
+
+Fixed effects:
+                  Estimate Std. Error z value Pr(>|z|)    
+(Intercept)       0.886189   0.113696   7.794 6.47e-15 ***
+fc               -0.053564   0.100377  -0.534 0.593597    
+prev_invRT        0.046480   0.022814   2.037 0.041618 *  
+trial_z          -0.007454   0.022887  -0.326 0.744650    
+prev_rewarded    -1.807477   0.049444 -36.556  < 2e-16 ***
+prev_vchosen     -2.981207   0.071173 -41.887  < 2e-16 ***
+prev_absPE       -0.364708   0.064654  -5.641 1.69e-08 ***
+fc:prev_rewarded  0.362078   0.044272   8.179 2.87e-16 ***
+fc:prev_vchosen  -0.061418   0.068494  -0.897 0.369882    
+fc:prev_absPE     0.203194   0.057659   3.524 0.000425 ***
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+Correlation of Fixed Effects:
+            (Intr) fc     prv_RT tril_z prv_rw prv_vc prv_PE fc:prv_r fc:prv_v
+fc           0.010                                                            
+prev_invRT   0.434  0.040                                                     
+trial_z      0.166 -0.012  0.135                                              
+prev_rewrdd -0.062  0.016 -0.014 -0.109                                       
+prev_vchosn -0.161 -0.003 -0.008 -0.200  0.024                                
+prev_absPE  -0.123  0.011 -0.011 -0.035 -0.319 -0.302                         
+fc:prv_rwrd  0.012 -0.041 -0.007  0.009 -0.119 -0.020 -0.037                  
+fc:prv_vchs -0.024 -0.172 -0.047  0.027 -0.023 -0.029  0.099 -0.022           
+fc:prv_bsPE  0.007 -0.121 -0.011 -0.002 -0.037  0.099 -0.144 -0.385   -0.253  
+convergence code: 0
+Model failed to converge with max|grad| = 0.00116976 (tol = 0.001, component 1)
+
+> car::Anova(mmfc1, type=3)
+Analysis of Deviance Table (Type III Wald chisquare tests)
+
+Response: switch_choice
+                     Chisq Df Pr(>Chisq)    
+(Intercept)        60.7517  1  6.475e-15 ***
+fc                  0.2848  1   0.593597    
+prev_invRT          4.1507  1   0.041618 *  
+trial_z             0.1061  1   0.744650    
+prev_rewarded    1336.3332  1  < 2.2e-16 ***
+prev_vchosen     1754.4968  1  < 2.2e-16 ***
+prev_absPE         31.8202  1  1.691e-08 ***
+fc:prev_rewarded   66.8889  1  2.872e-16 ***
+fc:prev_vchosen     0.8041  1   0.369882    
+fc:prev_absPE      12.4191  1   0.000425 ***
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+> 
+> 
+> #interim conclusions:
+> #1) if the previous trial was rewarded, less likely to shift (i.e., win-stay)
+> #2) if subject chose high-value option on previous trial, less likely to shift (i.e., value-based sticking)
+> #3) higher FC in 161_202 is associated with weaker tendency toward win-stay (i.e., more shifting after wins)
+> 
+> #since this edge was chosen based on BPD vs. HC, we may have something like
+> #prevrew -> switch (a1) as a random slope
+> #then, BPD -> fc ->  a1 as mediated moderation
+> 
+> mm2 <- glmer(switch_choice ~ fc + prev_invRT + trial_z + fc*prev_rewarded*BPDfac + prev_vchosen*fc + (1 + prev_rewarded | NUM_ID), df1, family=binomial())
+Warning message:
+In checkConv(attr(opt, "derivs"), opt$par, ctrl = control$checkConv,  :
+  Model failed to converge with max|grad| = 0.00718131 (tol = 0.001, component 1)
+> summary(mm2)
+Generalized linear mixed model fit by maximum likelihood (Laplace
+  Approximation) [glmerMod]
+ Family: binomial  ( logit )
+Formula: switch_choice ~ fc + prev_invRT + trial_z + fc * prev_rewarded *  
+    BPDfac + prev_vchosen * fc + (1 + prev_rewarded | NUM_ID)
+   Data: df1
+
+     AIC      BIC   logLik deviance df.resid 
+ 15816.0  15936.5  -7893.0  15786.0    22741 
+
+Scaled residuals: 
+    Min      1Q  Median      3Q     Max 
+-4.3823 -0.3723 -0.1544 -0.0367 18.3483 
+
+Random effects:
+ Groups Name          Variance Std.Dev. Corr 
+ NUM_ID (Intercept)   0.7237   0.8507        
+        prev_rewarded 0.8182   0.9045   -0.06
+Number of obs: 22756, groups:  NUM_ID, 78
+
+Fixed effects:
+                           Estimate Std. Error z value Pr(>|z|)    
+(Intercept)                 0.77592    0.15969   4.859 1.18e-06 ***
+fc                         -0.17163    0.17625  -0.974   0.3302    
+prev_invRT                  0.03796    0.02264   1.677   0.0936 .  
+trial_z                    -0.01430    0.02295  -0.623   0.5332    
+prev_rewarded              -2.02667    0.18246 -11.107  < 2e-16 ***
+BPDfacBPD                   0.02034    0.20938   0.097   0.9226    
+prev_vchosen               -3.17256    0.06871 -46.171  < 2e-16 ***
+fc:prev_rewarded            0.40124    0.20273   1.979   0.0478 *  
+fc:BPDfacBPD                0.21172    0.21617   0.979   0.3274    
+prev_rewarded:BPDfacBPD    -0.17583    0.25034  -0.702   0.4824    
+fc:prev_vchosen             0.06880    0.06683   1.030   0.3032    
+fc:prev_rewarded:BPDfacBPD  0.13260    0.25250   0.525   0.5995    
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+Correlation of Fixed Effects:
+            (Intr) fc     prv_RT tril_z prv_rw BPDBPD prv_vc fc:prv_r f:BPDB
+fc           0.330                                                          
+prev_invRT   0.307  0.025                                                   
+trial_z      0.116 -0.002  0.131                                            
+prev_rewrdd -0.094 -0.030 -0.006 -0.032                                     
+BPDfacBPD   -0.673 -0.247 -0.001 -0.001  0.071                              
+prev_vchosn -0.148  0.011 -0.013 -0.219 -0.021 -0.003                       
+fc:prv_rwrd -0.030 -0.096  0.001 -0.003  0.341  0.025 -0.017                
+fc:BPDfcBPD -0.266 -0.802 -0.004 -0.007  0.026  0.092 -0.007  0.080         
+prv_:BPDBPD  0.067  0.022  0.002  0.001 -0.701 -0.102  0.009 -0.242   -0.007
+fc:prv_vchs -0.009 -0.136 -0.049  0.034 -0.019 -0.004  0.012 -0.025    0.017
+fc:_:BPDBPD  0.023  0.079 -0.005  0.005 -0.285 -0.007  0.010 -0.805   -0.100
+            p_:BPD fc:prv_v
+fc                         
+prev_invRT                 
+trial_z                    
+prev_rewrdd                
+BPDfacBPD                  
+prev_vchosn                
+fc:prv_rwrd                
+fc:BPDfcBPD                
+prv_:BPDBPD                
+fc:prv_vchs  0.010         
+fc:_:BPDBPD  0.056  0.006  
+convergence code: 0
+Model failed to converge with max|grad| = 0.00718131 (tol = 0.001, component 1)
+
+> car::Anova(mm2, type=3)
+Analysis of Deviance Table (Type III Wald chisquare tests)
+
+Response: switch_choice
+                            Chisq Df Pr(>Chisq)    
+(Intercept)               23.6087  1   1.18e-06 ***
+fc                         0.9483  1    0.33016    
+prev_invRT                 2.8114  1    0.09360 .  
+trial_z                    0.3882  1    0.53324    
+prev_rewarded            123.3734  1  < 2.2e-16 ***
+BPDfac                     0.0094  1    0.92263    
+prev_vchosen            2131.7649  1  < 2.2e-16 ***
+fc:prev_rewarded           3.9173  1    0.04779 *  
+fc:BPDfac                  0.9593  1    0.32737    
+prev_rewarded:BPDfac       0.4933  1    0.48245    
+fc:prev_vchosen            1.0599  1    0.30323    
+fc:prev_rewarded:BPDfac    0.2758  1    0.59947    
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+> 
+> #move toward Mplus MSEM because it alows us to test for BPD -> FC -> trial mediated moderation (prevrew -> stay) effects
+> #because FC edges were selected on the basis of discriminating HC/BPD, it seems like a possible double dipping problem if we start using
+> #them in other ways that suggest independence. Although the groups don't differ on *all* edges in terms of mean level, they differ on most,
+> #which is a function of the feature selection.
+> 
+> #thus, we have 'baked in' edges that have BPD -> FC differences and now we want to see whether there are FC -> behavior effects.
+> #If each part of the chain holds, then we move forward to BPD -> FC -> behavior. This is only (easily) possible in MSEM since we
+> #want the indirect effects on the between level.
+> 
+> #base MSEM object
+> mobj <- mplusObject(
++   TITLE="Win-stay lose-switch as a function of FC",
++   ANALYSIS="TYPE=TWOLEVEL RANDOM;
++     ESTIMATOR=BAYES; 
++     FBITERATIONS=20000;
++     PROCESSORS = 4;
++   ",
++   VARIABLE = "
++     CATEGORICAL=switch_choice;
++     BETWEEN=fc;
++     CLUSTER=NUM_ID;
++     WITHIN=trial_z prev_invRT; !addl covariates
++   ",
++   MODEL="
++   %WITHIN%
++     stay_slo | switch_choice ON prev_rewarded;
++     switch_choice ON prev_vchosen prev_invRT trial_z;
++   %BETWEEN%
++     stay_slo ON fc;
++     prev_vchosen prev_rewarded; !overall choice quality variables
++     switch_choice WITH stay_slo;
++   ",
++   rdata = tomodel,
++   usevariables = c("switch_choice", "prev_rewarded", "prev_vchosen", "prev_invRT", "trial_z", "NUM_ID", "fc"),
++   OUTPUT="STANDARDIZED CINTERVAL TECH8;"
++ )
+> 
+> 
+> mplus_params <- list()
+> mplus_results <- list()
+> mplus_params_bpd <- list()
+> mplus_results_bpd <- list()
+> 
+> for (vv in fcvars) {
++   df1 <- tomodel
++   df1$fc <- tomodel[[vv]] #current fc
++   this <- update(mobj, TITLE = ~ . + paste0("Connection:" + vv),
++                  rdata=df1)
++   
++   if (!file.exists(paste0("msem_fc", vv, ".out"))) {
++     mres <- mplusModeler(this, modelout=paste0("msem_fc", vv, ".inp"), run=TRUE, hashfilename = FALSE,
++                          Mplus_command = "/Users/mnh5174/Applications/Mplus/mplus")$results
++   } else {
++     mres <- readModels(paste0("msem_fc", vv, ".out"))
++   }
++   
++   mplus_params[[vv]] <- mres$parameters
++   mplus_results[[vv]] <- mres
++   
++   #add BPD
++   this <- update(
++     mobj, TITLE = ~ . + paste0("Connection:", vv, ", BPD mediation"),
++     usevariables=c(mobj$usevariables, "BPD"),
++     VARIABLE= ~"
++       CATEGORICAL=switch_choice;
++       BETWEEN=fc BPD;
++       CLUSTER=NUM_ID;
++       WITHIN=trial_z prev_invRT;",
++     MODEL= ~"
++       %WITHIN%
++   
++         stay_slo | switch_choice ON prev_rewarded;
++         switch_choice ON prev_vchosen prev_invRT trial_z;
++       %BETWEEN%
++         stay_slo ON fc (b)
++           BPD (cprime);
++         fc ON BPD (a);
++         prev_vchosen prev_rewarded; !overall choice quality variables
++         switch_choice WITH stay_slo;",
++     MODELCONSTRAINT= ~ "NEW (ind); ind=a*b;",
++     rdata=df1
++   )
++   
++   if (!file.exists(paste0("msem_fc_bpd", vv, ".out"))) {
++     mres_bpd <- mplusModeler(this, modelout=paste0("msem_fc_bpd", vv, ".inp"), run=TRUE, hashfilename = FALSE,
++                              Mplus_command = "/Users/mnh5174/Applications/Mplus/mplus")$results
++   } else {
++     mres_bpd <- readModels(paste0("msem_fc_bpd", vv, ".out"))
++   }
++   mplus_params_bpd[[vv]] <- mres_bpd$parameters
++   mplus_results_bpd[[vv]] <- mres_bpd
++   
++ }
+Reading model:  msem_fcX88_99.out 
+Reading model:  msem_fc_bpdX88_99.out 
+Reading model:  msem_fcX191_149.out 
+Reading model:  msem_fc_bpdX191_149.out 
+Reading model:  msem_fcX79_148.out 
+Reading model:  msem_fc_bpdX79_148.out 
+Reading model:  msem_fcX88_82.out 
+Reading model:  msem_fc_bpdX88_82.out 
+Reading model:  msem_fcX82_97.out 
+Reading model:  msem_fc_bpdX82_97.out 
+Reading model:  msem_fcX78_148.out 
+Reading model:  msem_fc_bpdX78_148.out 
+Reading model:  msem_fcX79_199.out 
+Reading model:  msem_fc_bpdX79_199.out 
+Reading model:  msem_fcX192_99.out 
+Reading model:  msem_fc_bpdX192_99.out 
+Reading model:  msem_fcX88_149.out 
+Reading model:  msem_fc_bpdX88_149.out 
+Reading model:  msem_fcX194_79.out 
+Reading model:  msem_fc_bpdX194_79.out 
+Reading model:  msem_fcX89_155.out 
+Reading model:  msem_fc_bpdX89_155.out 
+Reading model:  msem_fcX89_149.out 
+Reading model:  msem_fc_bpdX89_149.out 
+Reading model:  msem_fcX191_48.out 
+Reading model:  msem_fc_bpdX191_48.out 
+Reading model:  msem_fcX88_199.out 
+Reading model:  msem_fc_bpdX88_199.out 
+Reading model:  msem_fcX194_155.out 
+Reading model:  msem_fc_bpdX194_155.out 
+Reading model:  msem_fcX86_220.out 
+Reading model:  msem_fc_bpdX86_220.out 
+Reading model:  msem_fcX84_220.out 
+Reading model:  msem_fc_bpdX84_220.out 
+Reading model:  msem_fcX194_203.out 
+Reading model:  msem_fc_bpdX194_203.out 
+Reading model:  msem_fcX90_215.out 
+Reading model:  msem_fc_bpdX90_215.out 
+Reading model:  msem_fcX89_220.out 
+Reading model:  msem_fc_bpdX89_220.out 
+Reading model:  msem_fcX89_203.out 
+Reading model:  msem_fc_bpdX89_203.out 
+Reading model:  msem_fcX161_202.out 
+Reading model:  msem_fc_bpdX161_202.out 
+> 
+> #combine and examine
+> ind_effects <- lapply(1:length(mplus_params_bpd), function(m) {
++   pars <- mplus_params_bpd[[m]]$unstandardized
++   pars$fc <- names(mplus_params)[m]
++   pars <- pars %>% filter(paramHeader %in% c("New.Additional.Parameters", "STAY_SLO.ON", "FC.ON"))
++   return(pars)
++ })
+> 
+> ind_effects <- bind_rows(ind_effects) 
+> sigind <- ind_effects %>% filter(param=="IND" & pval < .06) %>% pull(fc)
+> ind_effects_sig <- ind_effects %>% filter(fc %in% sigind) %>% arrange(fc, paramHeader)
+> ind_effects_sig %>% split(.$fc)
+$X161_202
+                paramHeader param    est posterior_sd  pval lower_2.5ci
+1                     FC.ON   BPD  0.601        0.226 0.004       0.156
+2 New.Additional.Parameters   IND  0.123        0.066 0.004       0.024
+3               STAY_SLO.ON    FC  0.219        0.068 0.001       0.085
+4               STAY_SLO.ON   BPD -0.076        0.137 0.290      -0.339
+  upper_2.5ci   sig BetweenWithin       fc
+1       1.041  TRUE       Between X161_202
+2       0.281  TRUE       Between X161_202
+3       0.352  TRUE       Between X161_202
+4       0.196 FALSE       Between X161_202
+
+$X194_155
+                paramHeader param    est posterior_sd  pval lower_2.5ci
+5                     FC.ON   BPD -0.513        0.230 0.013      -0.966
+6 New.Additional.Parameters   IND -0.058        0.049 0.046      -0.181
+7               STAY_SLO.ON    FC  0.127        0.068 0.033      -0.008
+8               STAY_SLO.ON   BPD  0.129        0.140 0.177      -0.144
+  upper_2.5ci   sig BetweenWithin       fc
+5      -0.065  TRUE       Between X194_155
+6       0.008 FALSE       Between X194_155
+7       0.260 FALSE       Between X194_155
+8       0.407 FALSE       Between X194_155
+
+$X194_79
+                 paramHeader param    est posterior_sd  pval lower_2.5ci
+9                      FC.ON   BPD -0.636        0.221 0.002      -1.072
+10 New.Additional.Parameters   IND -0.089        0.058 0.019      -0.226
+11               STAY_SLO.ON    FC  0.150        0.069 0.017       0.011
+12               STAY_SLO.ON   BPD  0.158        0.141 0.130      -0.118
+   upper_2.5ci   sig BetweenWithin      fc
+9       -0.206  TRUE       Between X194_79
+10      -0.004  TRUE       Between X194_79
+11       0.286  TRUE       Between X194_79
+12       0.441 FALSE       Between X194_79
+
+$X79_148
+                 paramHeader param    est posterior_sd  pval lower_2.5ci
+13                     FC.ON   BPD -0.663        0.222 0.002      -1.100
+14 New.Additional.Parameters   IND -0.071        0.056 0.051      -0.205
+15               STAY_SLO.ON    FC  0.118        0.071 0.049      -0.023
+16               STAY_SLO.ON   BPD  0.151        0.144 0.147      -0.130
+   upper_2.5ci   sig BetweenWithin      fc
+13      -0.231  TRUE       Between X79_148
+14       0.014 FALSE       Between X79_148
+15       0.255 FALSE       Between X79_148
+16       0.438 FALSE       Between X79_148
+
+$X79_199
+                 paramHeader param    est posterior_sd  pval lower_2.5ci
+17                     FC.ON   BPD -0.655        0.225 0.002      -1.098
+18 New.Additional.Parameters   IND -0.108        0.063 0.009      -0.257
+19               STAY_SLO.ON    FC  0.176        0.069 0.007       0.041
+20               STAY_SLO.ON   BPD  0.183        0.141 0.097      -0.092
+   upper_2.5ci   sig BetweenWithin      fc
+17      -0.217  TRUE       Between X79_199
+18      -0.017  TRUE       Between X79_199
+19       0.312  TRUE       Between X79_199
+20       0.464 FALSE       Between X79_199
+
+$X88_82
+                 paramHeader param    est posterior_sd  pval lower_2.5ci
+21                     FC.ON   BPD -0.648        0.224 0.002      -1.090
+22 New.Additional.Parameters   IND -0.096        0.060 0.015      -0.239
+23               STAY_SLO.ON    FC  0.160        0.070 0.012       0.020
+24               STAY_SLO.ON   BPD  0.176        0.142 0.108      -0.101
+   upper_2.5ci   sig BetweenWithin     fc
+21      -0.212  TRUE       Between X88_82
+22      -0.007  TRUE       Between X88_82
+23       0.296  TRUE       Between X88_82
+24       0.458 FALSE       Between X88_82
+
+> 
+> #the pattern here is generally consistent except for 161_202: 
+> # 1) The stay_slo mean is negative -- meaning that previously rewarded trials are associated with lower p(switch)
+> # 2) All of these edges are associated with more positive prev_reward -> switch slopes. In other words, strong FC for
+> #       these edges is associated with *weaker* win stay behavior after a reward.
+> # 3) 5 of 6 edges show lower FC in BPD than HC, meaning that they support stronger win-stay behaviors in BPD than in HC
+> # 4) 1 of 6 (161_202) shows the opposite pattern: stronger FC in BPD supports more win-switch behaviors (i.e., more positive slope)
+> 
+> save.image(file="winstay_analyses.RData")
+> 
+> proc.time()
+   user  system elapsed 
+206.925   5.822 215.121 
