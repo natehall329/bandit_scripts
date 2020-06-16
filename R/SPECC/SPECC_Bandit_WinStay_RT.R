@@ -39,6 +39,7 @@ ggplot(fc_data, aes(BPD_fac, fcvars[10], color = BPD_fac)) + geom_jitter() + geo
 
 # AD: get a sense of the covariance among the edges
 fc_only <- fc_data %>% select(fcv)
+
 fc_cor <- corr.test(fc_only,method = 'pearson', adjust = 'none')
 # parametric correlations on winsorised betas
 # clust_cor <- cor(just_rois_w,method = 'pearson')
@@ -62,6 +63,66 @@ tomodel <- as_tibble(read.csv(file=file.path(bandit_dir, "R", "SPECC", "specc_tr
   mutate(BPDfac=factor(BPD, levels=c(0,1), labels=c("HC", "BPD")),
          #prev_rewarded=factor(prev_rewarded, levels=c(0,1), labels=c("no", "yes")),
          trial_z = as.vector(scale(trial)))
+
+# sanity checks
+ggplot(tomodel) + geom_smooth(aes(trial, pA, color = "A")) + geom_smooth(aes(trial, pB, color = "B")) + geom_smooth(aes(trial, pC, color = "C"))
+ggplot(tomodel) + geom_smooth(aes(trial, QA, color = "A")) + geom_smooth(aes(trial, QB, color = "B")) + geom_smooth(aes(trial, QC, color = "C")) +
+  geom_smooth(aes(trial, vmax, lty = "Vmax")) + geom_smooth(aes(trial, vchosen, lty = "Vchosen")) + ylab("Value") 
+# PE more correlated with vchosen than with vmax
+ggplot(tomodel, aes(prev_vmax, prev_PE)) + geom_smooth(method = "gam")
+ggplot(tomodel, aes(prev_vchosen, prev_PE)) + geom_smooth(method = "gam")
+
+# subject-level correlations
+sub_df <- tomodel %>% filter(trial==1) %>% select(c(22:36, 47:68)) 
+lab <- as_tibble_col(names(sub_df[,16:37]), column_name = "edge")
+lab <- lab %>% mutate(seed = case_when(grepl("X78", edge) ~ 'MTG_l1',
+                 grepl("X79", edge) ~ 'MTG_l2',
+                 grepl("X82", edge) ~ 'angularG_l',
+                 grepl('X84', edge) ~ 'vmPFC_l',
+                 grepl('X86', edge) ~ 'rmPFC_l',
+                 grepl("X88", edge) ~ 'rACC_l',
+                 grepl('X89', edge) ~ 'dmPFC_l',
+                 grepl('X90', edge) ~ 'dACC_l',
+                 grepl('X161', edge) ~ 'rmPFC_r',
+                 grepl('X191', edge) ~ 'vmPFC_r',
+                 grepl('X192', edge) ~ 'rACC_r',
+                 grepl('X194', edge) ~ 'dmPFC_r'
+),
+target = case_when(grepl("_48", edge) ~ 'ant_ins_l',
+                   grepl("_78", edge) ~ 'MTG_l1',
+                   grepl("_79", edge) ~ 'MTG_l2',
+                   grepl("_82", edge) ~ 'angularG_l',
+                   grepl('_84', edge) ~ 'vmPFC_l',
+                   grepl('_86', edge) ~ 'rmPFC_l',
+                   grepl("_88", edge) ~ 'rACC_l',
+                   grepl('_89', edge) ~ 'dmPFC_l',
+                   grepl('_90', edge) ~ 'dACC_l',
+                   grepl('_97', edge) ~ 'precuneus_mid_l',
+                   grepl('_99', edge) ~ 'precuneus_sup_l',
+                   grepl('_141', edge) ~ 'IPL_r',
+                   grepl('_148', edge) ~ 'MTG_r',
+                   grepl('_149', edge) ~ 'STG_r',
+                   grepl('_155', edge) ~ 'mid_ins_r',
+                   grepl('_161', edge) ~ 'rmPFC_r',
+                   grepl('_191', edge) ~ 'vmPFC_r',
+                   grepl('_192', edge) ~ 'rACC_r',
+                   grepl('_194', edge) ~ 'dmPFC_r',
+                   grepl('_199', edge) ~ 'PCC_r',
+                   grepl('_203', edge) ~ 'VS_r',
+                   grepl('_202', edge) ~ 'BLA_r',
+                   grepl('_215', edge) ~ 'VS_l',
+                   grepl('_220', edge) ~ 'CMN_r'
+),
+edge_label = paste0(seed,"_",target))
+names(sub_df)[16:37] = lab$edge_label[match(names(sub_df[16:37]), lab$edge)]
+sub_cor <- corr.test(sub_df,method = 'pearson', adjust = 'none')
+pdf("bpd_sub_corr.pdf", width=24, height=24)
+corrplot(sub_cor$r, cl.lim=c(-1,1),
+         method = "circle", tl.cex = 1.5, type = "upper", tl.col = 'black',
+         order = "hclust", diag = FALSE,
+         addCoef.col="black", addCoefasPercent = FALSE,
+         p.mat = sub_cor$p, sig.level=0.05, insig = "blank")
+dev.off()
 
 #start by getting basic model 'right': current shift predicted by previous characteristics
 mm1 <- glmer(switch_choice ~ prev_invRT + trial_z + prev_rewarded + prev_vchosen + (1 | NUM_ID), tomodel, family=binomial())
@@ -270,7 +331,7 @@ for (vv in fcvars) {
   print(edge_number)
   df1 <- tomodel
   df1$fc <- tomodel[[vv]] #current fc
-  # prototype without the RE of reinforcement
+  # model without the RE of reinforcement (nothing survives FDR otherwise)
   m <- lmerTest::lmer(invRT ~ fc + prev_invRT + prev_vmax*fc + prev_rewarded*fc + prev_absPE*fc + switch_choice*fc + (1|NUM_ID), df1)
   df2 <- broom.mixed::tidy(m)
   df2$edge <- vv
@@ -340,6 +401,8 @@ dev.off()
 pdf("edge_seed_target_rt_effects.pdf", height = 11, width = 15)
 ggarrange(p2,p3, p1, ncol = 3, nrow = 1)
 dev.off()
+
+# plot selected nodes to understand the effects
 
 
 #BPD seem to have more post-reward and post-absolute PE slowing
